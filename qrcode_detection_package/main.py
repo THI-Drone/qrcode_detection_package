@@ -26,6 +26,8 @@ def main(args=None):
 
     rclpy.spin(minimal_publisher)
 
+    print("Hello World!")
+
     minimal_publisher.destroy_node()
     rclpy.shutdown()
 

@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'demo_package_py'
+package_name = 'qrcode_detection_package'
 
 setup(
     name=package_name,
@@ -13,14 +13,14 @@ setup(
     ],
     install_requires=['setuptools', 'common_package_py'],
     zip_safe=True,
-    maintainer='philipp',
-    maintainer_email='phg6386@thi.de',
-    description='TODO: Package description',
+    maintainer='Finn',
+    maintainer_email='fie6449@thi.de',
+    description='This package contains all nodes responsible for detecting QR codes from the camera input',
     license='MIT',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'demo_node = demo_package_py.main:main',
+            'qrcode_detection_node = qrcode_detection_package.main:main',
         ],
     },
 )
