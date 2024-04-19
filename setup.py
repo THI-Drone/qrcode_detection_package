@@ -11,7 +11,7 @@ setup(
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
     ],
-    install_requires=['setuptools', 'opencv-python', 'common_package_py'],
+    install_requires=['setuptools', 'python3-opencv', 'common_package_py'],
     zip_safe=True,
     maintainer='Finn',
     maintainer_email='fie6449@thi.de',
