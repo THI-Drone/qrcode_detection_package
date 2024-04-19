@@ -20,7 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'qrcode_detection_node = qrcode_detection_package.main:main',
+            'qr_code_scanner_node = qrcode_detection_package.main:main',
         ],
     },
 )

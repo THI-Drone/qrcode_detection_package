@@ -14,8 +14,9 @@ class QRCodeScannerNode(CommonNode):
             String, 'qr_codes', 10)
 
     def capture_image(self):
+        # For testing purposes the image is not taken from the camera but loaded a test file
         # Path to the image file
-        image_path = '/home/ws/src/qrcode_detection_package/test_image/test.png'
+        image_path = '/home/ws/src/src/qrcode_detection_package/test_image/test.jpg'
         # Load the image using OpenCV
         captured_image = cv2.imread(image_path)
 
@@ -23,14 +24,15 @@ class QRCodeScannerNode(CommonNode):
 
 
     def detect_qr_codes(self, image):
-        # Actual implementation of QR code detection using OpenCV
+        # implementation of QR code detection using OpenCV
         qr_code_detector = cv2.QRCodeDetector()
         # Detect QR codes in the image
-        retval, decoded_info, points = qr_code_detector.detectAndDecodeMulti(image)
+        decoded_info, points, _ = qr_code_detector.detectAndDecode(image)
         qr_codes = []
-        if retval:
-            for info in decoded_info:
-                qr_codes.append(info)
+        if decoded_info:
+            qr_codes.append(decoded_info)
+        else:
+            self.get_logger().info(f"No QR Code found")
         return qr_codes
 
     def process_images(self):
@@ -40,7 +42,7 @@ class QRCodeScannerNode(CommonNode):
                 qr_codes = self.detect_qr_codes(captured_image)
                 if qr_codes:
                     for code in qr_codes:
-                        self.qr_publisher.publish(code)
+                        #self.qr_publisher.publish(code)
                         self.get_logger().info(f"Detected QR code: {code}")
 
 def main(args=None):
