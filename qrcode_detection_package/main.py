@@ -22,11 +22,10 @@ class QRCodeScannerNode(CommonNode):
         captured_image = cv2.imread(image_path)
         return captured_image
 
-
     def __detect_qr_codes(self, image):
         # Detect QR codes in the image using opencv
         decoded_info, points, _ = self.qr_code_detector.detectAndDecode(image)
-        
+
         return decoded_info
 
     def process_images(self):
@@ -35,10 +34,12 @@ class QRCodeScannerNode(CommonNode):
             if captured_image is not None:
                 qr_code_content = self.__detect_qr_codes(captured_image)
                 if qr_code_content:
-                    #self.qr_publisher.publish(code)
-                    self.get_logger().info(f"Detected QR code: {qr_code_content}")
+                    # self.qr_publisher.publish(code)
+                    self.get_logger().info(
+                        f"Detected QR code: {qr_code_content}")
                 else:
                     self.get_logger().info(f"No QR Code found")
+
 
 def main(args=None):
     rclpy.init(args=args)
