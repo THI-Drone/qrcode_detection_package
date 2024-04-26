@@ -7,12 +7,12 @@ from std_msgs.msg import String
 from common_package_py.common_node import CommonNode
 
 
+
 class QRCodeScannerNode(CommonNode):
     def __init__(self, id: str):
         super().__init__(id)
         self.qr_code_detector = cv2.QRCodeDetector()
-        self.qr_publisher = self.create_publisher(
-            String, 'qr_codes', 10)
+        self.qr_publisher = self.create_publisher(interfaces::msg::QRCodeInfo, 'qr_codes', 10)
 
     def __capture_image(self):
         # For testing purposes the image is not taken from the camera but loaded a test file
@@ -25,7 +25,7 @@ class QRCodeScannerNode(CommonNode):
     def __detect_qr_codes(self, image):
         # Detect QR codes in the image using opencv
         decoded_info, points, _ = self.qr_code_detector.detectAndDecode(image)
-
+        print(points)
         return decoded_info
 
     def process_images(self):
@@ -34,7 +34,15 @@ class QRCodeScannerNode(CommonNode):
             if captured_image is not None:
                 qr_code_content = self.__detect_qr_codes(captured_image)
                 if qr_code_content:
-                    # self.qr_publisher.publish(code)
+                    qr_code_position = [0.5, 0.5]
+                    
+                    msg = QRCodeInfo()
+                    msg.qr_code_content = qr_code_content
+                    msg.qr_code_position = qr_code_position
+
+                    self.qr_publisher.publish(msg)
+                    self.get_logger().info("Published QR code info")
+                    
                     self.get_logger().info(
                         f"Detected QR code: {qr_code_content}")
                 else:
