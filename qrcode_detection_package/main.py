@@ -5,14 +5,14 @@ import cv2
 from std_msgs.msg import String
 
 from common_package_py.common_node import CommonNode
-
+from interfaces.msg import QRCodeInfo
 
 
 class QRCodeScannerNode(CommonNode):
     def __init__(self, id: str):
         super().__init__(id)
         self.qr_code_detector = cv2.QRCodeDetector()
-        self.qr_publisher = self.create_publisher(interfaces::msg::QRCodeInfo, 'qr_codes', 10)
+        self.qr_publisher = self.create_publisher(QRCodeInfo, 'qr_codes', 10)
 
     def __capture_image(self):
         # For testing purposes the image is not taken from the camera but loaded a test file
