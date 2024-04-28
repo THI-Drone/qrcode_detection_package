@@ -17,10 +17,9 @@ class QRCodeScannerNode(CommonNode):
 
     def __capture_image(self):
         """
-        Capture an image either from the camera or a test image, depending on the configuration.
+        @brief Capture an image either from the camera or a test image, depending on the configuration.
 
-        Returns:
-        - A numpy array representing the captured image.
+        @return A numpy array representing the captured image.
         """
         import cv2
         
@@ -58,13 +57,11 @@ class QRCodeScannerNode(CommonNode):
     
     def __corners_to_middlepoint(self, points):
         """
-        Calculate the geometric midpoint of a rectangle formed by 4 points.
+        @brief Calculate the geometric midpoint of a rectangle formed by 4 points.
 
-        Args:
-        - points: A list of tuples representing the coordinates of the 4 points.
+        @param points: A list of tuples representing the coordinates of the 4 points.
 
-        Returns:
-        - A tuple representing the geometric midpoint of the rectangle.
+        @return A tuple representing the geometric midpoint of the rectangle.
         """
         # Extract the coordinates of the diagonal points
         top_left = points[0][0]
@@ -79,13 +76,33 @@ class QRCodeScannerNode(CommonNode):
 
 
     def __detect_qr_codes(self, image):
-        # Detect QR codes in the image using opencv
+        """
+        @brief Detect QR codes in the image and calculate the midpoint of the bounding rectangle.
+
+        @param image: The image in which to detect QR codes.
+
+        @return A tuple containing:
+                - The decoded information from the QR code.
+                - The x-coordinate of the geometric midpoint of the QR code.
+                - The y-coordinate of the geometric midpoint of the QR code.
+        """
+        # Detect QR codes in the image using OpenCV
         decoded_info, points, _ = self.qr_code_detector.detectAndDecode(image)
+        
+        # Calculate the geometric midpoint of the bounding rectangle
         midpoint_x, midpoint_y = self.__corners_to_middlepoint(points)
+        
+        # Log the midpoint coordinates
         self.get_logger().info(f"QR code middle point: ({midpoint_x}|{midpoint_y})")
+        
         return decoded_info, midpoint_x, midpoint_y
 
     def process_images(self):
+        """
+        @brief This method continuously captures images, detects QR codes in the images, and publishes
+        information about the detected QR codes.
+
+        """
         while True:
             captured_image = self.__capture_image()
             if captured_image is not None:
@@ -107,6 +124,15 @@ class QRCodeScannerNode(CommonNode):
 
 
 def main(args=None):
+    """
+    @brief Entry point of the QR code scanner node.
+
+    This function initializes the ROS 2 node, creates an instance of the QRCodeScannerNode class,
+    and starts the image processing loop. It handles the cleanup operations before shutting down
+    the node.
+
+    @param args: Command-line arguments. Default is None.
+    """
     rclpy.init(args=args)
     node_id = 'qr_code_scanner_node'
     qr_code_scanner_node = QRCodeScannerNode(node_id)
