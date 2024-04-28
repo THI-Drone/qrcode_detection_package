@@ -21,20 +21,43 @@ class QRCodeScannerNode(CommonNode):
         # Load the image using OpenCV
         captured_image = cv2.imread(image_path)
         return captured_image
+    
+    def __corners_to_middlepoint(self, points):
+        """
+        Calculate the geometric midpoint of a rectangle formed by 4 points.
+
+        Args:
+        - points: A list of tuples representing the coordinates of the 4 points.
+
+        Returns:
+        - A tuple representing the geometric midpoint of the rectangle.
+        """
+        # Extract the coordinates of the diagonal points
+        top_left = points[0][0]
+        bottom_right = points[0][2]
+        
+        # Calculate the geometric midpoint
+        midpoint_x = (top_left[0] + bottom_right[0]) / 2
+        midpoint_y = (top_left[1] + bottom_right[1]) / 2
+        
+        # Return the midpoint as a tuple (x, y)
+        return (midpoint_x, midpoint_y)
+
 
     def __detect_qr_codes(self, image):
         # Detect QR codes in the image using opencv
         decoded_info, points, _ = self.qr_code_detector.detectAndDecode(image)
-        print(points)
-        return decoded_info
+        midpoint_x, midpoint_y = self.__corners_to_middlepoint(points)
+        self.get_logger().info(f"QR code middle point: ({midpoint_x}|{midpoint_y})")
+        return decoded_info, midpoint_x, midpoint_y
 
     def process_images(self):
         while True:
             captured_image = self.__capture_image()
             if captured_image is not None:
-                qr_code_content = self.__detect_qr_codes(captured_image)
+                qr_code_content, midpoint_x, midpoint_y = self.__detect_qr_codes(captured_image)
                 if qr_code_content:
-                    qr_code_position = [0.5, 0.5]
+                    qr_code_position = [midpoint_x, midpoint_y]
                     
                     msg = QRCodeInfo()
                     msg.qr_code_content = qr_code_content
