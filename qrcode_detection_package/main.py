@@ -13,13 +13,47 @@ class QRCodeScannerNode(CommonNode):
         super().__init__(id)
         self.qr_code_detector = cv2.QRCodeDetector()
         self.qr_publisher = self.create_publisher(QRCodeInfo, 'qr_codes', 10)
+        self.use_test_image = True
 
     def __capture_image(self):
-        # For testing purposes the image is not taken from the camera but loaded a test file
-        # Path to the image file
-        image_path = 'src/qrcode_detection_package/test_image/test.jpg'
-        # Load the image using OpenCV
-        captured_image = cv2.imread(image_path)
+        """
+        Capture an image either from the camera or a test image, depending on the configuration.
+
+        Returns:
+        - A numpy array representing the captured image.
+        """
+        import cv2
+        
+        
+        # Check if the test image should be used
+        if self.use_test_image:
+            # Path to the test image
+            test_image_path = 'src/qrcode_detection_package/test_image/test.jpg'
+            
+            # Load the test image
+            captured_image = cv2.imread(test_image_path)
+        else:
+            # Initialize a VideoCapture object for the camera
+            cap = cv2.VideoCapture(0)
+            
+            # Check if the VideoCapture object was opened successfully
+            if not cap.isOpened():
+                print("Error: Unable to open camera")
+                return None
+            
+            # Capture an image from the camera
+            ret, frame = cap.read()
+            
+            # Check if the image was captured successfully
+            if not ret:
+                print("Error: Unable to capture image from camera")
+                return None
+            
+            # Release the VideoCapture object
+            cap.release()
+            
+            captured_image = frame
+        
         return captured_image
     
     def __corners_to_middlepoint(self, points):
