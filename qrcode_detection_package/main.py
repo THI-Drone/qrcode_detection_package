@@ -15,10 +15,12 @@ class QRCodeScannerNode(CommonNode):
         super().__init__(id)
         self.qr_code_detector = cv2.QRCodeDetector()
         self.qr_publisher = self.create_publisher(QRCodeInfo, 'qr_codes', 10)
+        
         # until tested properly different detection methods are implemented and can be configured here
         # 0 = load stored test image (for testing purposes)
         # 1 = use OpenCV to get image from camera (this is the wanted solution)
         # 2 = use libcamera shell script to take photo and load it (fallback solution)
+        
         self.config_detection_method = 0
 
     def __capture_image(self):
@@ -32,13 +34,17 @@ class QRCodeScannerNode(CommonNode):
         # Check which detection style should be used
         if (self.config_detection_method == 0):
             # Path to the test image
-            test_image_path = 'src/qrcode_detection_package/test_image/test.jpg'
+            test_image_path = 'src/qrcode_detection_package/test_image/test3.png'
             
             # Load the test image
             captured_image = cv2.imread(test_image_path)
         elif (self.config_detection_method == 1):
             # Initialize a VideoCapture object for the camera
             cap = cv2.VideoCapture(0)
+            
+            # To-Do: Evaluate influence of different camera settings to quality and performance on the real hardware
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 4056)
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 3040)
             
             # Check if the VideoCapture object was opened successfully
             if not cap.isOpened():
@@ -91,17 +97,18 @@ class QRCodeScannerNode(CommonNode):
     
     def __relative_midpoint(self, midpoint_x, midpoint_y, img_width, img_height):
         """
-        @brief calculate the midpoints of the qrcode relative to the middle of the image
+        @brief calculate the position of the qrcode relative to the middle of the image in percent from 
+               -100% to 100% relative to image height and width
 
         @param absolute midpoint coordinates and image width and height
 
         @return A tuple representing the relative position of the qr code to the middle of the picture
         """
-        # calculation of y requires inversed logic due to inversed OpenCV image y-coordinates
-        rel_midpoint_x = midpoint_x - (img_width/2)
-        rel_midpoint_y = (img_height/2) - midpoint_y
+        # calculation of y requires inversed logic due to inversed OpenCV image y-coordinates        
+        rel_midpoint_x_percent = ((midpoint_x - img_width / 2) / (img_width / 2)) * 100
+        rel_midpoint_y_percent = -((midpoint_y - img_height / 2) / (img_height / 2)) * 100
         
-        return (rel_midpoint_x, rel_midpoint_y)
+        return (rel_midpoint_x_percent, rel_midpoint_y_percent)
 
 
     def __detect_qr_codes(self, image):
@@ -118,19 +125,25 @@ class QRCodeScannerNode(CommonNode):
         # Detect QR codes in the image using OpenCV
         decoded_info, points, _ = self.qr_code_detector.detectAndDecode(image)
         
-        # Calculate the geometric midpoint of the bounding rectangle
-        midpoint_x, midpoint_y = self.__corners_to_middlepoint(points)
-        
-        # Log the midpoint coordinates
-        self.get_logger().info(f"QR code middle point: ({midpoint_x}|{midpoint_y})")
-        
-        # Get midpoints relative to the center of the picture
-        img_height, img_width = image.shape[:2]
-        rel_midpoint_x, rel_midpoint_y = self.__relative_midpoint(midpoint_x, midpoint_y, img_width, img_height)
-        
-        # Log the relative midpoint coordinates
-        self.get_logger().info(f"Relative QR code middle point: ({rel_midpoint_x}|{rel_midpoint_y})")
-        
+        #decoded_info = decoded_info_multi[0]
+        if (len(decoded_info) > 0):
+            # Calculate the geometric midpoint of the bounding rectangle
+            midpoint_x, midpoint_y = self.__corners_to_middlepoint(points)
+            
+            # Log the midpoint coordinates
+            self.get_logger().info(f"QR code middle point: ({midpoint_x}|{midpoint_y})")
+            
+            # Get midpoints relative to the center of the picture
+            img_height, img_width = image.shape[:2]
+            rel_midpoint_x, rel_midpoint_y = self.__relative_midpoint(midpoint_x, midpoint_y, img_width, img_height)
+            
+            # Log the relative midpoint coordinates
+            self.get_logger().info(f"Relative QR code middle point: ({rel_midpoint_x}|{rel_midpoint_y})")
+        else:
+            decoded_info = "Error"
+            rel_midpoint_x = 0
+            rel_midpoint_y = 0
+
         return decoded_info, rel_midpoint_x, rel_midpoint_y
 
     def process_images(self):
@@ -145,7 +158,7 @@ class QRCodeScannerNode(CommonNode):
             if captured_image is not None:
                 # use OpenCV to detect qr codes in the image
                 qr_code_content, qrcode_center_x, qrcode_center_y = self.__detect_qr_codes(captured_image)
-                if qr_code_content:
+                if qr_code_content and qr_code_content != "Error":
                     # if a QR-Code was successfully detected, publish contents on the topic
                     qr_code_position = [qrcode_center_x, qrcode_center_y]
                     
