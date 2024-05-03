@@ -1,5 +1,7 @@
 import sys
 import rclpy
+import time
+import subprocess
 from rclpy.node import Node
 import cv2
 from std_msgs.msg import String
@@ -13,45 +15,58 @@ class QRCodeScannerNode(CommonNode):
         super().__init__(id)
         self.qr_code_detector = cv2.QRCodeDetector()
         self.qr_publisher = self.create_publisher(QRCodeInfo, 'qr_codes', 10)
-        self.use_test_image = True
+        # until tested properly different detection methods are implemented and can be configured here
+        # 0 = load stored test image (for testing purposes)
+        # 1 = use OpenCV to get image from camera (this is the wanted solution)
+        # 2 = use libcamera shell script to take photo and load it (fallback solution)
+        self.config_detection_method = 0
 
     def __capture_image(self):
         """
         @brief Capture an image either from the camera or a test image, depending on the configuration.
 
-        @return A numpy array representing the captured image.
+        @return OpenCV MatLike representing the captured image.
         """
         import cv2
         
-        
-        # Check if the test image should be used
-        if self.use_test_image:
+        # Check which detection style should be used
+        if (self.config_detection_method == 0):
             # Path to the test image
             test_image_path = 'src/qrcode_detection_package/test_image/test.jpg'
             
             # Load the test image
             captured_image = cv2.imread(test_image_path)
-        else:
+        elif (self.config_detection_method == 1):
             # Initialize a VideoCapture object for the camera
             cap = cv2.VideoCapture(0)
             
             # Check if the VideoCapture object was opened successfully
             if not cap.isOpened():
-                print("Error: Unable to open camera")
-                return None
+                self.get_logger().info("Error: Unable to open camera")
             
             # Capture an image from the camera
-            ret, frame = cap.read()
+            ret, img = cap.read()
             
             # Check if the image was captured successfully
             if not ret:
-                print("Error: Unable to capture image from camera")
-                return None
+                self.get_logger().info("Error: Unable to capture image from camera")
+            
+            captured_image = img
             
             # Release the VideoCapture object
             cap.release()
             
-            captured_image = frame
+        elif (self.config_detection_method == 2):
+            try:
+                # set image path with timestamp as name
+                timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
+                image_path = f"/image/{timestamp}.jpg"
+                # execute libcamera command to capture imagae
+                command = ["libcamera-jpeg", "-o", image_path]
+                subprocess.run(command)
+            except:
+                self.get_logger().info("libcamera could not take picture")
+            captured_image = cv2.imread(image_path)
         
         return captured_image
     
