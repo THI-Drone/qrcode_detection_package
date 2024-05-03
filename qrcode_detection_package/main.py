@@ -88,6 +88,20 @@ class QRCodeScannerNode(CommonNode):
         
         # Return the midpoint as a tuple (x, y)
         return (midpoint_x, midpoint_y)
+    
+    def __relative_midpoint(self, midpoint_x, midpoint_y, img_width, img_height):
+        """
+        @brief calculate the midpoints of the qrcode relative to the middle of the image
+
+        @param absolute midpoint coordinates and image width and height
+
+        @return A tuple representing the relative position of the qr code to the middle of the picture
+        """
+        # calculation of y requires inversed logic due to inversed OpenCV image y-coordinates
+        rel_midpoint_x = midpoint_x - (img_width/2)
+        rel_midpoint_y = (img_height/2) - midpoint_y
+        
+        return (rel_midpoint_x, rel_midpoint_y)
 
 
     def __detect_qr_codes(self, image):
@@ -110,7 +124,14 @@ class QRCodeScannerNode(CommonNode):
         # Log the midpoint coordinates
         self.get_logger().info(f"QR code middle point: ({midpoint_x}|{midpoint_y})")
         
-        return decoded_info, midpoint_x, midpoint_y
+        # Get midpoints relative to the center of the picture
+        img_height, img_width = image.shape[:2]
+        rel_midpoint_x, rel_midpoint_y = self.__relative_midpoint(midpoint_x, midpoint_y, img_width, img_height)
+        
+        # Log the relative midpoint coordinates
+        self.get_logger().info(f"Relative QR code middle point: ({rel_midpoint_x}|{rel_midpoint_y})")
+        
+        return decoded_info, rel_midpoint_x, rel_midpoint_y
 
     def process_images(self):
         """
@@ -119,11 +140,14 @@ class QRCodeScannerNode(CommonNode):
 
         """
         while True:
+            # capture image
             captured_image = self.__capture_image()
             if captured_image is not None:
-                qr_code_content, midpoint_x, midpoint_y = self.__detect_qr_codes(captured_image)
+                # use OpenCV to detect qr codes in the image
+                qr_code_content, qrcode_center_x, qrcode_center_y = self.__detect_qr_codes(captured_image)
                 if qr_code_content:
-                    qr_code_position = [midpoint_x, midpoint_y]
+                    # if a QR-Code was successfully detected, publish contents on the topic
+                    qr_code_position = [qrcode_center_x, qrcode_center_y]
                     
                     msg = QRCodeInfo()
                     msg.qr_code_content = qr_code_content
