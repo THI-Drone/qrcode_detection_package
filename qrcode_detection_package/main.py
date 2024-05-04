@@ -307,11 +307,9 @@ def main(args=None):
             if (qr_code_scanner_node.active):
                 try:
                     qr_code_scanner_node.scan_for_qr_code()
-                #except:
                 except Exception as error:
                     # handle the exception
-                    print("An exception occurred:", error)
-                    qr_code_scanner_node.get_logger().info("Error ocurred when scanning QR Code")     
+                    qr_code_scanner_node.get_logger().info(f"Error ocurred when scanning QR Code: {error}")     
             # if the node gets deactivated in searching the state changes to "ready"
             else:
                 qr_code_scanner_node.set_state("ready")
