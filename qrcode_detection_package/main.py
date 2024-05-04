@@ -13,17 +13,19 @@ from interfaces.msg import Control
 class QRCodeScannerNode(CommonNode):
     def __init__(self, id: str):
         """
-        @brief Constructor of the QRCodeScannerNode class
+        Constructor of the QRCodeScannerNode class.
 
-        @param id: The node_id
-
-        @return None
-
-        @details This method initializes the object properties for the QRCodeSearch object.
+        This method initializes the object properties for the QRCodeSearch object.
         It sets the initial state to "ready" and configures the subscription and publisher objects for control 
         and QR code information. Additionally, it initializes the QR code detector from OpenCV.
         The method also includes a configuration variable for selecting the QR code detection method.
         This method is called automatically when creating a QRCodeSearch object.
+
+        Args: 
+            id: The node_id.
+
+        Returns: 
+            None
         """
         super().__init__(id)
         self.set_state("ready")
@@ -44,17 +46,19 @@ class QRCodeScannerNode(CommonNode):
 
     def __callback_control(self, control_msg):
         """
-        @brief Callback function for receiving control messages.
+        Callback function for receiving control messages.
 
-        @param control_msg: The received control message.
-
-        @return None
-
-        @details This callback function is triggered when a control message is received.
+        This callback function is triggered when a control message is received.
         It checks if the target ID of the control message matches the QR code scanner node.
         If it does, the function logs a message indicating the receipt of the control message.
         Depending on the 'active' flag in the control message, the function either activates
         or deactivates the QR code scanner node by calling the respective private methods.
+
+        Args: 
+            control_msg: The received control message.
+
+        Returns: 
+            None
         """
         if (control_msg.target_id == "qr_code_scanner_node"):
             self.get_logger().info("Recieved control message")
@@ -65,26 +69,29 @@ class QRCodeScannerNode(CommonNode):
 
     def set_state(self, state):
         """
-        @brief Sets the state of the node.
+        Sets the state of the node to the new state provided.
 
-        @param state: The new state to set the node to.
+        Args: 
+            state: The new state to set the node to.
 
-        @return None
+        Returns: 
+            None
         """
         self.nodeState = state
 
     def __capture_image(self):
         """
-        @brief Capture an image either from the camera or a test image, depending on the configuration.
+        Capture an image either from the camera or a test image, depending on the configuration.
 
-        @return OpenCV MatLike representing the captured image.
-
-        @details This method captures an image either from the camera or from a test image,
+        This method captures an image either from the camera or from a test image,
         depending on the configuration specified by 'config_detection_method'.
         - If 'config_detection_method' is set to 0, a test image is loaded from a predefined path.
         - If 'config_detection_method' is set to 1, an image is captured from the camera.
         - If 'config_detection_method' is set to 2, an image is captured using the libcamera command line tool.
         The captured image is returned as an OpenCV MatLike object.
+
+        Returns: 
+            OpenCV MatLike representing the captured image.
         """
         import cv2
 
@@ -135,11 +142,13 @@ class QRCodeScannerNode(CommonNode):
 
     def __corners_to_middlepoint(self, points):
         """
-        @brief Calculate the geometric midpoint of a rectangle formed by 4 points.
+        Calculate the geometric midpoint of a rectangle formed by 4 points.
 
-        @param points: A list of tuples representing the coordinates of the 4 points.
+        Args: 
+            points: A list of tuples representing the coordinates of the 4 points.
 
-        @return A tuple representing the geometric midpoint of the rectangle.
+        Returns: 
+            A tuple representing the geometric midpoint of the rectangle.
         """
         # Extract the coordinates of the diagonal points
         top_left = points[0][0]
@@ -154,12 +163,23 @@ class QRCodeScannerNode(CommonNode):
 
     def __relative_midpoint(self, midpoint_x, midpoint_y, img_width, img_height):
         """
-        @brief calculate the position of the qrcode relative to the middle of the image in percent from 
-        -100% to 100% relative to image height and width
+        Calculate the position of the QR code relative to the middle of the image in percent from 
+        -100% to 100% relative to image height and width.
 
-        @param absolute midpoint coordinates and image width and height
+        This function calculates the position of the QR code relative to the middle of the image.
+        The position is represented in percent from -100% to 100% relative to the image height and width.
+        The function takes absolute midpoint coordinates (midpoint_x, midpoint_y) and the image width 
+        and height as input.
+        It returns a tuple representing the relative position of the QR code to the middle of the picture.
 
-        @return A tuple representing the relative position of the qr code to the middle of the picture
+        Args: 
+            midpoint_x: The x-coordinate of the absolute midpoint of the QR code.
+            midpoint_y: The y-coordinate of the absolute midpoint of the QR code.
+            image_width: The width of the image.
+            image_height: The height of the image.
+
+        Returns: 
+            A tuple representing the relative position of the QR code to the middle of the picture.
         """
         # calculation of y requires inversed logic due to inversed OpenCV image y-coordinates
         rel_midpoint_x_percent = (
@@ -171,19 +191,21 @@ class QRCodeScannerNode(CommonNode):
 
     def __detect_qr_codes(self, image):
         """
-        @brief Detects QR codes in the provided image and calculates the midpoint of the bounding rectangle.
+        Detects QR codes in the provided image and calculates the midpoint of the bounding rectangle.
 
-        @param image: The image in which to detect QR codes in the OpenCV MatLike format.
-
-        @return A tuple containing:
-            - The decoded information from the QR code, or "Error" if no QR code is detected.
-            - The x-coordinate of the geometric midpoint of the detected QR code.
-            - The y-coordinate of the geometric midpoint of the detected QR code.
-
-        @details This method utilizes the OpenCV library to detect and decode QR codes in the provided image.
+        This method utilizes the OpenCV library to detect and decode QR codes in the provided image.
         If a QR code is successfully decoded, its information along with the geometric midpoint of its bounding rectangle
         are logged. Additionally, the relative midpoint coordinates, relative to the center of the image, are calculated
         and logged. If no QR code is detected, the method returns an error message along with default midpoint coordinates.
+
+        Args: 
+            image: The image in which to detect QR codes in the OpenCV MatLike format.
+
+        Returns: 
+            A tuple containing:
+                - The decoded information from the QR code, or "Error" if no QR code is detected.
+                - The x-coordinate of the geometric midpoint of the detected QR code.
+                - The y-coordinate of the geometric midpoint of the detected QR code.
         """
         # detect and decode QR codes in the image using OpenCV library
         decoded_info, points, _ = self.qr_code_detector.detectAndDecode(image)
@@ -219,15 +241,16 @@ class QRCodeScannerNode(CommonNode):
 
     def scan_for_qr_code(self):
         """
-        @brief Captures an image, detects QR code, and publishes information about it.
+        Captures an image, detects QR code, and publishes information about it.
 
-        @return None
-
-        @details This method captures a single image either from the camera or a test image,
+        This method captures a single image either from the camera or a test image,
         detects QR codes in the captured image, and publishes information about them on the 'qr_codes' topic.
         If a valid QR code is detected, the method saves the image containing the QR code and sends a job
         finished message indicating successful completion of the task. If no QR code is found or if there are
         errors in capturing the image, appropriate log messages are generated.
+
+        Returns: 
+            None
         """
         # capture image
         captured_image = self.__capture_image()
@@ -272,23 +295,23 @@ class QRCodeScannerNode(CommonNode):
 
 def main(args=None):
     """
-    @brief The main function initialises the node and runs the state machine over the lifetime of the node.
+    The main function initializes the node and runs the state machine over the lifetime of the node.
 
-    @param args: Command-line arguments. Default is None.
-
-    @return None
-
-    @details: This function initializes the ROS 2 node, creates an instance of the QRCodeScannerNode class,
-    and starts the image processing loop. 
-
-    Then the state machine decides what the node does depending on the internal state.
+    This function initializes the ROS 2 node, creates an instance of the QRCodeScannerNode class,
+    and starts the image processing loop. Then the state machine decides what the node does depending on the internal state.
     The states are:
     - "ready": The node is running and waits for a control message which activates it. There happens no image
                capturing or qr code scanning in this state
-    - "searching": in this state the node continously takes images and uses the OpenCV library to scan them for
+    - "searching": in this state the node continuously takes images and uses the OpenCV library to scan them for
                    QR-Codes. If a valid code is found, the nodes publishes its contents and position and switches
                    back to the state "ready"
     It handles the cleanup operations before shutting down the node.
+
+    Args: 
+        args: Command-line arguments. Default is None.
+
+    Returns: 
+        None
     """
     rclpy.init(args=args)
     node_id = 'qr_code_scanner_node'
