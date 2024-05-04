@@ -36,7 +36,8 @@ class QRCodeScannerNode(CommonNode):
             10
         )
         self.qr_code_detector = cv2.QRCodeDetector()
-        self.qr_publisher = self.create_publisher(QRCodeInfo, 'qr_codes', 10)
+        self.qr_publisher = self.create_publisher(
+            QRCodeInfo, 'qr_code_info', 10)
 
         # until tested properly different detection methods are implemented and can be configured here
         # 0 = load stored test image (for testing purposes)
@@ -77,7 +78,7 @@ class QRCodeScannerNode(CommonNode):
         Returns: 
             None
         """
-        self.nodeState = state
+        self.node_state = state
 
     def __capture_image(self):
         """
@@ -321,14 +322,14 @@ def main(args=None):
     while True:
         # check if node is in state "ready"
         # in this state the node waits for the control message to activate the node
-        if (qr_code_scanner_node.nodeState == "ready"):
+        if (qr_code_scanner_node.node_state == "ready"):
             qr_code_scanner_node.get_logger().info("Node is in state ready")
             # if the node got activated it sets its internal state to searching
             if (qr_code_scanner_node.active):
                 qr_code_scanner_node.set_state("searching")
         # check if node is in state "searching"
         # in this state the node will continue to capture images and scan them for qrcodes until node gets deactivated
-        elif (qr_code_scanner_node.nodeState == "searching"):
+        elif (qr_code_scanner_node.node_state == "searching"):
             qr_code_scanner_node.get_logger().info("Node is in state searching")
             # if the node is active start qr-code search
             if (qr_code_scanner_node.active):
@@ -340,7 +341,6 @@ def main(args=None):
                         f"Error ocurred when scanning QR Code: {error}")
             # if the node gets deactivated in searching the state changes to "ready"
             else:
-
                 qr_code_scanner_node.set_state("ready")
         else:
             # if the node is not in a valid state send error code to mission control and destroy node
