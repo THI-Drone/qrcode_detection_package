@@ -1,4 +1,3 @@
-import sys
 import rclpy
 import time
 import subprocess
@@ -28,7 +27,6 @@ class QRCodeScannerNode(CommonNode):
         # 0 = load stored test image (for testing purposes)
         # 1 = use OpenCV to get image from camera (this is the wanted solution)
         # 2 = use libcamera shell script to take photo and load it (fallback solution)
-        
         self.config_detection_method = 0
 
     def __callback_control(self, control_msg):
@@ -186,10 +184,15 @@ class QRCodeScannerNode(CommonNode):
             
             # check if a valid QR-Code has been found
             if qr_code_content and qr_code_content != "Error":
-                # if a QR-Code was successfully detected, publish contents on the topic
+                # if a QR-Code was successfully detected save the image and publish contents on the topic
                 
-                #create QRCodeInfo message to publish on qr_codes topic
+                # save the image that contains successfully decoded QR-Code
+                timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
+                cv2.imwrite(f'images/{timestamp}.jpg', captured_image)
+                
+                # create QRCodeInfo message to publish on qr_codes topic
                 msg = QRCodeInfo()
+                msg.timestamp = self.get_clock().now().to_msg()
                 msg.sender_id = self.node_id
                 msg.qr_code_content = qr_code_content
                 msg.qrcode_position_x = qrcode_center_x
@@ -198,10 +201,14 @@ class QRCodeScannerNode(CommonNode):
                 self.qr_publisher.publish(msg)
                 self.get_logger().info("Published QR code info")
                 
+                # create dict for sending job finished message
+                payload = {"marker":str(qr_code_content)}                
+                self._job_finished_custom_(CommonNode.EXIT_SUCCESS, payload)
+
             else:
                 self.get_logger().info("No QR Code found")
         else:
-            self.get_logger().info("Could not take image")
+            self.get_logger().info("Could not capture image")
 
 
 def main(args=None):
