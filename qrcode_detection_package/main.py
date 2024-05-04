@@ -14,11 +14,11 @@ class QRCodeScannerNode(CommonNode):
     def __init__(self, id: str):
         """
         @brief Constructor of the QRCodeScannerNode class
-        
+
         @param id: The node_id
-        
+
         @return None
-        
+
         @details This method initializes the object properties for the QRCodeSearch object.
         It sets the initial state to "ready" and configures the subscription and publisher objects for control 
         and QR code information. Additionally, it initializes the QR code detector from OpenCV.
@@ -35,7 +35,7 @@ class QRCodeScannerNode(CommonNode):
         )
         self.qr_code_detector = cv2.QRCodeDetector()
         self.qr_publisher = self.create_publisher(QRCodeInfo, 'qr_codes', 10)
-        
+
         # until tested properly different detection methods are implemented and can be configured here
         # 0 = load stored test image (for testing purposes)
         # 1 = use OpenCV to get image from camera (this is the wanted solution)
@@ -63,7 +63,6 @@ class QRCodeScannerNode(CommonNode):
             else:
                 self._deactivate_()
 
-
     def set_state(self, state):
         """
         @brief Sets the state of the node.
@@ -73,8 +72,7 @@ class QRCodeScannerNode(CommonNode):
         @return None
         """
         self.nodeState = state
-        
-        
+
     def __capture_image(self):
         """
         @brief Capture an image either from the camera or a test image, depending on the configuration.
@@ -89,38 +87,38 @@ class QRCodeScannerNode(CommonNode):
         The captured image is returned as an OpenCV MatLike object.
         """
         import cv2
-        
+
         # Check which detection style should be used
         if (self.config_detection_method == 0):
             # Path to the test image
             test_image_path = 'src/qrcode_detection_package/test_image/test3.png'
-            
+
             # Load the test image
             captured_image = cv2.imread(test_image_path)
         elif (self.config_detection_method == 1):
             # Initialize a VideoCapture object for the camera
             cap = cv2.VideoCapture(0)
-            
+
             # To-Do: Evaluate influence of different camera settings to quality and performance on the real hardware
             cap.set(cv2.CAP_PROP_FRAME_WIDTH, 4056)
             cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 3040)
-            
+
             # Check if the VideoCapture object was opened successfully
             if not cap.isOpened():
                 self.get_logger().info("Error: Unable to open camera")
-            
+
             # Capture an image from the camera
             ret, img = cap.read()
-            
+
             # Check if the image was captured successfully
             if not ret:
                 self.get_logger().info("Error: Unable to capture image from camera")
-            
+
             captured_image = img
-            
+
             # Release the VideoCapture object
             cap.release()
-            
+
         elif (self.config_detection_method == 2):
             try:
                 # set image path with timestamp as name
@@ -132,9 +130,9 @@ class QRCodeScannerNode(CommonNode):
             except:
                 self.get_logger().info("libcamera could not take picture")
             captured_image = cv2.imread(image_path)
-        
+
         return captured_image
-    
+
     def __corners_to_middlepoint(self, points):
         """
         @brief Calculate the geometric midpoint of a rectangle formed by 4 points.
@@ -146,14 +144,14 @@ class QRCodeScannerNode(CommonNode):
         # Extract the coordinates of the diagonal points
         top_left = points[0][0]
         bottom_right = points[0][2]
-        
+
         # Calculate the geometric midpoint
         midpoint_x = (top_left[0] + bottom_right[0]) / 2
         midpoint_y = (top_left[1] + bottom_right[1]) / 2
-        
+
         # Return the midpoint as a tuple (x, y)
         return (midpoint_x, midpoint_y)
-    
+
     def __relative_midpoint(self, midpoint_x, midpoint_y, img_width, img_height):
         """
         @brief calculate the position of the qrcode relative to the middle of the image in percent from 
@@ -163,12 +161,13 @@ class QRCodeScannerNode(CommonNode):
 
         @return A tuple representing the relative position of the qr code to the middle of the picture
         """
-        # calculation of y requires inversed logic due to inversed OpenCV image y-coordinates        
-        rel_midpoint_x_percent = ((midpoint_x - img_width / 2) / (img_width / 2)) * 100
-        rel_midpoint_y_percent = -((midpoint_y - img_height / 2) / (img_height / 2)) * 100
-        
-        return (rel_midpoint_x_percent, rel_midpoint_y_percent)
+        # calculation of y requires inversed logic due to inversed OpenCV image y-coordinates
+        rel_midpoint_x_percent = (
+            (midpoint_x - img_width / 2) / (img_width / 2)) * 100
+        rel_midpoint_y_percent = - \
+            ((midpoint_y - img_height / 2) / (img_height / 2)) * 100
 
+        return (rel_midpoint_x_percent, rel_midpoint_y_percent)
 
     def __detect_qr_codes(self, image):
         """
@@ -188,30 +187,33 @@ class QRCodeScannerNode(CommonNode):
         """
         # detect and decode QR codes in the image using OpenCV library
         decoded_info, points, _ = self.qr_code_detector.detectAndDecode(image)
-        
+
         # check if QR code was successfully decoded
         if (len(decoded_info) > 0):
             # Log QR-Code content
             self.get_logger().info(f"Detected QR code: {decoded_info}")
-            
+
             # Calculate the geometric midpoint of the bounding rectangle
             midpoint_x, midpoint_y = self.__corners_to_middlepoint(points)
-            
+
             # Log the midpoint coordinates
-            self.get_logger().info(f"QR code middle point: ({midpoint_x}|{midpoint_y})")
-            
+            self.get_logger().info(
+                f"QR code middle point: ({midpoint_x}|{midpoint_y})")
+
             # Get midpoints relative to the center of the picture
             img_height, img_width = image.shape[:2]
-            rel_midpoint_x, rel_midpoint_y = self.__relative_midpoint(midpoint_x, midpoint_y, img_width, img_height)
-            
+            rel_midpoint_x, rel_midpoint_y = self.__relative_midpoint(
+                midpoint_x, midpoint_y, img_width, img_height)
+
             # Log the relative midpoint coordinates
-            self.get_logger().info(f"Relative QR code middle point: ({rel_midpoint_x}|{rel_midpoint_y})")
+            self.get_logger().info(
+                f"Relative QR code middle point: ({rel_midpoint_x}|{rel_midpoint_y})")
         else:
             # if no QR-Code was detected set return values to error standard
             decoded_info = "Error"
             rel_midpoint_x = 0
             rel_midpoint_y = 0
-        
+
         # return content and relative position of the QR-Code
         return decoded_info, rel_midpoint_x, rel_midpoint_y
 
@@ -232,18 +234,20 @@ class QRCodeScannerNode(CommonNode):
         # check if an image was captured
         if captured_image is not None:
             # use OpenCV to detect qr codes in the image
-            qr_code_content, qrcode_center_x, qrcode_center_y = self.__detect_qr_codes(captured_image)
-            
+            qr_code_content, qrcode_center_x, qrcode_center_y = self.__detect_qr_codes(
+                captured_image)
+
             # check if a valid QR-Code has been found
             if qr_code_content and qr_code_content != "Error":
                 # if a QR-Code was successfully detected save the image and publish contents on the topic
-                
+
                 # save the image that contains successfully decoded QR-Code
                 timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
                 img_path = f'images/{timestamp}.jpg'
                 cv2.imwrite(img_path, captured_image)
-                self.get_logger().info(f"Saved image of detected QR-Code as: {img_path}")
-                
+                self.get_logger().info(
+                    f"Saved image of detected QR-Code as: {img_path}")
+
                 # create QRCodeInfo message to publish on qr_codes topic
                 msg = QRCodeInfo()
                 msg.time_stamp = self.get_clock().now().to_msg()
@@ -251,12 +255,12 @@ class QRCodeScannerNode(CommonNode):
                 msg.qr_code_content = qr_code_content
                 msg.qrcode_position_x = qrcode_center_x
                 msg.qrcode_position_y = qrcode_center_y
-                
+
                 self.qr_publisher.publish(msg)
                 self.get_logger().info("Published QR code info")
-                
+
                 # create dict for sending job finished message
-                payload = {"marker":str(qr_code_content)}                
+                payload = {"marker": str(qr_code_content)}
                 self._job_finished_custom_(CommonNode.EXIT_SUCCESS, payload)
                 self.get_logger().info("Published job finished message")
 
@@ -271,12 +275,12 @@ def main(args=None):
     @brief The main function initialises the node and runs the state machine over the lifetime of the node.
 
     @param args: Command-line arguments. Default is None.
-    
+
     @return None
-    
+
     @details: This function initializes the ROS 2 node, creates an instance of the QRCodeScannerNode class,
     and starts the image processing loop. 
-    
+
     Then the state machine decides what the node does depending on the internal state.
     The states are:
     - "ready": The node is running and waits for a control message which activates it. There happens no image
@@ -289,7 +293,7 @@ def main(args=None):
     rclpy.init(args=args)
     node_id = 'qr_code_scanner_node'
     qr_code_scanner_node = QRCodeScannerNode(node_id)
-    
+
     # start excecuting state machine until node gets destroyed
     while True:
         # check if node is in state "ready"
@@ -309,20 +313,24 @@ def main(args=None):
                     qr_code_scanner_node.scan_for_qr_code()
                 except Exception as error:
                     # handle the exception
-                    qr_code_scanner_node.get_logger().info(f"Error ocurred when scanning QR Code: {error}")     
+                    qr_code_scanner_node.get_logger().info(
+                        f"Error ocurred when scanning QR Code: {error}")
             # if the node gets deactivated in searching the state changes to "ready"
             else:
+
                 qr_code_scanner_node.set_state("ready")
         else:
             # if the node is not in a valid state send error code to mission control and destroy node
-            qr_code_scanner_node.get_logger().info("QR-Code detection node is in unknown state")
-            qr_code_scanner_node._job_finished_error_msg_("Node shut down because it is in unknwon state")
+            qr_code_scanner_node.get_logger().info(
+                "QR-Code detection node is in unknown state")
+            qr_code_scanner_node._job_finished_error_msg_(
+                "Node shut down because it is in unknwon state")
             break
-        
+
     # destroy the node
     qr_code_scanner_node.destroy_node()
     rclpy.shutdown()
-            
+
 
 if __name__ == '__main__':
     main()
