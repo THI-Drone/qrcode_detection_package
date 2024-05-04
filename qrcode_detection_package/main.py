@@ -13,7 +13,8 @@ from interfaces.msg import Control
 class QRCodeScannerNode(CommonNode):
     def __init__(self, id: str):
         super().__init__(id)
-        self.__set_state("ready")
+        self.set_state("searching")
+        self._activate_()
         self.control_subscription = self.create_subscription(
             Control,
             "control",
@@ -30,14 +31,15 @@ class QRCodeScannerNode(CommonNode):
         self.config_detection_method = 0
 
     def __callback_control(self, control_msg):
-        if (control_msg.target_id == self.node_id):
+        if (control_msg.target_id == "qr_code_scanner_node"):
             self.get_logger().info("Recieved control message")
             if (control_msg.active):
                 self._activate_()
             else:
                 self._deactivate_()
-        
-    def __set_state(self, state):
+
+
+    def set_state(self, state):
         self.nodeState = state
         
         
@@ -136,9 +138,9 @@ class QRCodeScannerNode(CommonNode):
         @param image: The image in which to detect QR codes.
 
         @return A tuple containing:
-                - The decoded information from the QR code.
-                - The x-coordinate of the geometric midpoint of the QR code.
-                - The y-coordinate of the geometric midpoint of the QR code.
+            - The decoded information from the QR code.
+            - The x-coordinate of the geometric midpoint of the QR code.
+            - The y-coordinate of the geometric midpoint of the QR code.
         """
         # detect and decode QR codes in the image using OpenCV library
         decoded_info, points, _ = self.qr_code_detector.detectAndDecode(image)
@@ -192,8 +194,8 @@ class QRCodeScannerNode(CommonNode):
                 
                 # create QRCodeInfo message to publish on qr_codes topic
                 msg = QRCodeInfo()
-                msg.timestamp = self.get_clock().now().to_msg()
-                msg.sender_id = self.node_id
+                msg.time_stamp = self.get_clock().now().to_msg()
+                msg.sender_id = "qr_code_scanner_node"
                 msg.qr_code_content = qr_code_content
                 msg.qrcode_position_x = qrcode_center_x
                 msg.qrcode_position_y = qrcode_center_y
@@ -204,6 +206,7 @@ class QRCodeScannerNode(CommonNode):
                 # create dict for sending job finished message
                 payload = {"marker":str(qr_code_content)}                
                 self._job_finished_custom_(CommonNode.EXIT_SUCCESS, payload)
+                self.get_logger().info("Published job finished message")
 
             else:
                 self.get_logger().info("No QR Code found")
@@ -239,21 +242,26 @@ def main(args=None):
         # check if node is in state "ready"
         # in this state the node waits for the control message to activate the node
         if (qr_code_scanner_node.nodeState == "ready"):
+            qr_code_scanner_node.get_logger().info("Node is in state ready")
             # if the node got activated it sets its internal state to searching
-            if (qr_code_scanner_node.active()):
-                qr_code_scanner_node.__set_state("searching")
+            if (qr_code_scanner_node.active):
+                qr_code_scanner_node.set_state("searching")
         # check if node is in state "searching"
         # in this state the node will continue to capture images and scan them for qrcodes until node gets deactivated
         elif (qr_code_scanner_node.nodeState == "searching"):
+            qr_code_scanner_node.get_logger().info("Node is in state searching")
             # if the node is active start qr-code search
-            if (qr_code_scanner_node.active()):
+            if (qr_code_scanner_node.active):
                 try:
                     qr_code_scanner_node.process_images()
-                except:
+                #except:
+                except Exception as error:
+                    # handle the exception
+                    print("An exception occurred:", error)
                     qr_code_scanner_node.get_logger().info("Error ocurred when scanning QR Code")     
             # if the node gets deactivated in searching the state changes to "ready"
             else:
-                qr_code_scanner_node.__set_state("ready")
+                qr_code_scanner_node.set_state("ready")
         else:
             # if the node is not in a valid state send error code to mission control and destroy node
             qr_code_scanner_node.get_logger().info("QR-Code detection node is in unknown state")
