@@ -8,11 +8,19 @@ from std_msgs.msg import String
 
 from common_package_py.common_node import CommonNode
 from interfaces.msg import QRCodeInfo
+from interfaces.msg import Control
 
 
 class QRCodeScannerNode(CommonNode):
     def __init__(self, id: str):
         super().__init__(id)
+        self.__set_state("ready")
+        self.control_subscription = self.create_subscription(
+            Control,
+            "control",
+            self.__callback_control,
+            10
+        )
         self.qr_code_detector = cv2.QRCodeDetector()
         self.qr_publisher = self.create_publisher(QRCodeInfo, 'qr_codes', 10)
         
@@ -23,6 +31,18 @@ class QRCodeScannerNode(CommonNode):
         
         self.config_detection_method = 0
 
+    def __callback_control(self, control_msg):
+        if (control_msg.target_id == self.node_id):
+            self.get_logger().info("Recieved control message")
+            if (control_msg.active):
+                self._activate_()
+            else:
+                self._deactivate_()
+        
+    def __set_state(self, state):
+        self.nodeState = state
+        
+        
     def __capture_image(self):
         """
         @brief Capture an image either from the camera or a test image, depending on the configuration.
@@ -122,11 +142,14 @@ class QRCodeScannerNode(CommonNode):
                 - The x-coordinate of the geometric midpoint of the QR code.
                 - The y-coordinate of the geometric midpoint of the QR code.
         """
-        # Detect QR codes in the image using OpenCV
+        # detect and decode QR codes in the image using OpenCV library
         decoded_info, points, _ = self.qr_code_detector.detectAndDecode(image)
         
-        #decoded_info = decoded_info_multi[0]
+        # check if QR code was successfully decoded
         if (len(decoded_info) > 0):
+            # Log QR-Code content
+            self.get_logger().info(f"Detected QR code: {decoded_info}")
+            
             # Calculate the geometric midpoint of the bounding rectangle
             midpoint_x, midpoint_y = self.__corners_to_middlepoint(points)
             
@@ -140,10 +163,12 @@ class QRCodeScannerNode(CommonNode):
             # Log the relative midpoint coordinates
             self.get_logger().info(f"Relative QR code middle point: ({rel_midpoint_x}|{rel_midpoint_y})")
         else:
+            # if no QR-Code was detected set return values to error standard
             decoded_info = "Error"
             rel_midpoint_x = 0
             rel_midpoint_y = 0
-
+        
+        # return content and relative position of the QR-Code
         return decoded_info, rel_midpoint_x, rel_midpoint_y
 
     def process_images(self):
@@ -152,49 +177,86 @@ class QRCodeScannerNode(CommonNode):
         information about the detected QR codes.
 
         """
-        while True:
-            # capture image
-            captured_image = self.__capture_image()
-            if captured_image is not None:
-                # use OpenCV to detect qr codes in the image
-                qr_code_content, qrcode_center_x, qrcode_center_y = self.__detect_qr_codes(captured_image)
-                if qr_code_content and qr_code_content != "Error":
-                    # if a QR-Code was successfully detected, publish contents on the topic
-                    qr_code_position = [qrcode_center_x, qrcode_center_y]
-                    
-                    msg = QRCodeInfo()
-                    msg.qr_code_content = qr_code_content
-                    msg.qr_code_position = qr_code_position
-
-                    self.qr_publisher.publish(msg)
-                    self.get_logger().info("Published QR code info")
-                    
-                    self.get_logger().info(
-                        f"Detected QR code: {qr_code_content}")
-                else:
-                    self.get_logger().info(f"No QR Code found")
+        # capture image
+        captured_image = self.__capture_image()
+        # check if an image was captured
+        if captured_image is not None:
+            # use OpenCV to detect qr codes in the image
+            qr_code_content, qrcode_center_x, qrcode_center_y = self.__detect_qr_codes(captured_image)
+            
+            # check if a valid QR-Code has been found
+            if qr_code_content and qr_code_content != "Error":
+                # if a QR-Code was successfully detected, publish contents on the topic
+                
+                #create QRCodeInfo message to publish on qr_codes topic
+                msg = QRCodeInfo()
+                msg.sender_id = self.node_id
+                msg.qr_code_content = qr_code_content
+                msg.qrcode_position_x = qrcode_center_x
+                msg.qrcode_position_y = qrcode_center_y
+                
+                self.qr_publisher.publish(msg)
+                self.get_logger().info("Published QR code info")
+                
+            else:
+                self.get_logger().info("No QR Code found")
+        else:
+            self.get_logger().info("Could not take image")
 
 
 def main(args=None):
     """
-    @brief Entry point of the QR code scanner node.
+    @brief The main function initialises the node and runs the state machine over the lifetime of the node
 
     This function initializes the ROS 2 node, creates an instance of the QRCodeScannerNode class,
-    and starts the image processing loop. It handles the cleanup operations before shutting down
-    the node.
+    and starts the image processing loop. 
+    
+    Then the state machine decides what the node does depending on the internal state.
+    The states are:
+    - "ready": The node is running and waits for a control message which activates it. There happens no image
+               capturing or qr code scanning in this state
+    - "searching": in this state the node continously takes images and uses the OpenCV library to scan them for
+                   QR-Codes. If a valid code is found, the nodes publishes its contents and position and switches
+                   back to the state "ready"
+    
+    It handles the cleanup operations before shutting down the node.
 
     @param args: Command-line arguments. Default is None.
     """
     rclpy.init(args=args)
     node_id = 'qr_code_scanner_node'
     qr_code_scanner_node = QRCodeScannerNode(node_id)
-
-    try:
-        qr_code_scanner_node.process_images()
-    finally:
-        qr_code_scanner_node.destroy_node()
-        rclpy.shutdown()
-
+    
+    # start excecuting state machine until node gets destroyed
+    while True:
+        # check if node is in state "ready"
+        # in this state the node waits for the control message to activate the node
+        if (qr_code_scanner_node.nodeState == "ready"):
+            # if the node got activated it sets its internal state to searching
+            if (qr_code_scanner_node.active()):
+                qr_code_scanner_node.__set_state("searching")
+        # check if node is in state "searching"
+        # in this state the node will continue to capture images and scan them for qrcodes until node gets deactivated
+        elif (qr_code_scanner_node.nodeState == "searching"):
+            # if the node is active start qr-code search
+            if (qr_code_scanner_node.active()):
+                try:
+                    qr_code_scanner_node.process_images()
+                except:
+                    qr_code_scanner_node.get_logger().info("Error ocurred when scanning QR Code")     
+            # if the node gets deactivated in searching the state changes to "ready"
+            else:
+                qr_code_scanner_node.__set_state("ready")
+        else:
+            # if the node is not in a valid state send error code to mission control and destroy node
+            qr_code_scanner_node.get_logger().info("QR-Code detection node is in unknown state")
+            qr_code_scanner_node._job_finished_error_msg_("Node shut down because it is in unknwon state")
+            break
+        
+    # destroy the node
+    qr_code_scanner_node.destroy_node()
+    rclpy.shutdown()
+            
 
 if __name__ == '__main__':
     main()
