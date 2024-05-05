@@ -12,9 +12,11 @@ from common_package_py.topic_names import TopicNames
 from interfaces.msg import QRCodeInfo
 from interfaces.msg import Control
 
+
 class NodeState(Enum):
     READY = 0
     SEARCHING = 1
+
 
 class CaptureImageMethod(Enum):
     # until tested properly different image taking methods are implemented and can be configured
@@ -24,7 +26,8 @@ class CaptureImageMethod(Enum):
     LOADIMAGE = 0
     OPENCV = 1
     LIBCAMERA = 2
-    
+
+
 class NoQRCodeDetectedError(Exception):
     pass
 
@@ -96,7 +99,6 @@ class QRCodeScannerNode(CommonNode):
         """
         self.node_state = state
         self.get_logger().info(f"Set node to state {state}")
-        
 
     def __capture_image(self) -> Union[None, cv2.MatLike]:
         """
@@ -188,7 +190,7 @@ class QRCodeScannerNode(CommonNode):
 
         This function calculates the position of the QR code relative to the middle of the image.
         The position is represented in percent from -100% to 100% relative to the image height and width.
-        
+
         Args: 
             midpoint_x: The x-coordinate of the absolute midpoint of the QR code.
             midpoint_y: The y-coordinate of the absolute midpoint of the QR code.
@@ -295,18 +297,21 @@ class QRCodeScannerNode(CommonNode):
 
                     self.qr_publisher.publish(msg)
                     self.get_logger().info("Published QR code info")
-                    self.get_logger().info(f"Content = {qr_code_content}, Position = ({qrcode_center_x}|{qrcode_center_y})")
+                    self.get_logger().info(
+                        f"Content = {qr_code_content}, Position = ({qrcode_center_x}|{qrcode_center_y})")
 
                     # create dict for sending job finished message
                     payload = {"marker": str(qr_code_content)}
-                    self._job_finished_custom_(CommonNode.EXIT_SUCCESS, payload)
+                    self._job_finished_custom_(
+                        CommonNode.EXIT_SUCCESS, payload)
                     self.get_logger().info("Published job finished message")
 
                 else:
                     self.get_logger().info("No QR Code found")
             except NoQRCodeDetectedError as error:
                 # QR code detector raised exception
-                self.get_logger().info(f"QR-Code detector raised exception: {error}")
+                self.get_logger().info(
+                    f"QR-Code detector raised exception: {error}")
         else:
             self.get_logger().info("Could not capture image")
 
