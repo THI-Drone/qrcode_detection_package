@@ -3,6 +3,7 @@ import time
 import subprocess
 from rclpy.node import Node
 import cv2
+from cv2.typing import MatLike
 from std_msgs.msg import String
 from enum import Enum
 from typing import Union, Tuple, List
@@ -63,6 +64,7 @@ class QRCodeScannerNode(CommonNode):
 
         # configure image capturing method
         self.config_detection_method = CaptureImageMethod.LOADIMAGE
+        print(self.get_name())
 
     def __callback_control(self, control_msg: Control) -> None:
         """
@@ -80,6 +82,8 @@ class QRCodeScannerNode(CommonNode):
         Returns: 
             None
         """
+        self.get_logger().info("Recieved control message1")
+        print("Callback")
         if (control_msg.target_id == self.get_name()):
             self.get_logger().info("Recieved control message")
             if (control_msg.active):
@@ -100,7 +104,7 @@ class QRCodeScannerNode(CommonNode):
         self.node_state = state
         self.get_logger().info(f"Set node to state {state}")
 
-    def __capture_image(self) -> Union[None, cv2.MatLike]:
+    def __capture_image(self) -> Union[None, MatLike]:
         """
         Capture an image either from the camera or a test image, depending on the configuration.
 
@@ -208,7 +212,7 @@ class QRCodeScannerNode(CommonNode):
 
         return (rel_midpoint_x_percent, rel_midpoint_y_percent)
 
-    def __detect_qr_codes(self, image: cv2.MatLike) -> Tuple[str, float, float]:
+    def __detect_qr_codes(self, image: MatLike) -> Tuple[str, float, float]:
         """
         Detects QR codes in the provided image and calculates the midpoint of the bounding rectangle.
 
@@ -314,7 +318,10 @@ class QRCodeScannerNode(CommonNode):
                     f"QR-Code detector raised exception: {error}")
         else:
             self.get_logger().info("Could not capture image")
-
+                
+    def main(self) -> None:
+        print("Hallo main")
+        self.get_logger().info("node is in main")
 
 def main(args=None) -> None:
     """
@@ -324,10 +331,10 @@ def main(args=None) -> None:
     and starts the image processing loop. Then the state machine decides what the node does depending on the internal state.
     The states are:
     - "ready": The node is running and waits for a control message which activates it. There happens no image
-               capturing or qr code scanning in this state
+            capturing or qr code scanning in this state
     - "searching": in this state the node continuously takes images and uses the OpenCV library to scan them for
-                   QR-Codes. If a valid code is found, the nodes publishes its contents and position and switches
-                   back to the state "ready"
+                QR-Codes. If a valid code is found, the nodes publishes its contents and position and switches
+                back to the state "ready"
     It handles the cleanup operations before shutting down the node.
 
     Args: 
@@ -336,10 +343,11 @@ def main(args=None) -> None:
     Returns: 
         None
     """
+    print("Main function")
     rclpy.init(args=args)
     node_id = 'qr_code_scanner_node'
     qr_code_scanner_node = QRCodeScannerNode(node_id)
-
+    qr_code_scanner_node.main()
     # start excecuting state machine until node gets destroyed
     while True:
         match qr_code_scanner_node.node_state:
