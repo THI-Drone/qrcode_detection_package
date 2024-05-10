@@ -81,19 +81,23 @@ def test_activate_with_control_message():
         
         control_publisher.publish(msg)
         
-        time.sleep(10)
-        assert qr_scanner_node.active
-        executor.shutdown(0)
+        # time.sleep(10)
         
+    def end_timer_callback(): 
+        executor.shutdown(0)
 
 
     publish_control_timer = test_node.create_timer(
         0.1, timer_callback)
+    
+    end_timer = test_node.create_timer(
+        0.3, end_timer_callback)
 
     executor.add_node(qr_scanner_node)
     executor.add_node(test_node)
     
     executor.spin()
+    assert qr_scanner_node.active
     
     del executor
     rclpy.shutdown()
