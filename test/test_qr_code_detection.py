@@ -91,13 +91,12 @@ def test_activate_with_control_message():
         0.1, timer_callback)
     
     end_timer = test_node.create_timer(
-        0.3, end_timer_callback)
+        1, end_timer_callback)
 
     executor.add_node(qr_scanner_node)
     executor.add_node(test_node)
     
     executor.spin()
     assert qr_scanner_node.active
-    
     del executor
     rclpy.shutdown()

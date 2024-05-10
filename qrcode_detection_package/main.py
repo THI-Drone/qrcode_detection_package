@@ -64,7 +64,8 @@ class QRCodeScannerNode(CommonNode):
 
         # configure image capturing method
         self.config_detection_method = CaptureImageMethod.LOADIMAGE
-        print(self.get_name())
+        main_timer = self.create_timer(
+            0.01, self.main)
 
     def __callback_control(self, control_msg: Control) -> None:
         """
@@ -121,7 +122,8 @@ class QRCodeScannerNode(CommonNode):
         # Check which detection style should be used
         if (self.config_detection_method == CaptureImageMethod.LOADIMAGE):
             # Path to the test image
-            test_image_path = 'src/qrcode_detection_package/test_image/test3.png'
+            # test_image_path = 'src/qrcode_detection_package/test_image/test3.png'
+            test_image_path = '/src/qrcode_detection_package/test_image/test3.png'
 
             # Load the test image
             captured_image = cv2.imread(test_image_path)
@@ -320,68 +322,63 @@ class QRCodeScannerNode(CommonNode):
             self.get_logger().info("Could not capture image")
                 
     def main(self) -> None:
-        print("Hallo main")
-        self.get_logger().info("node is in main")
+        """
+        The main function initializes the node and runs the state machine over the lifetime of the node.
 
-def main(args=None) -> None:
-    """
-    The main function initializes the node and runs the state machine over the lifetime of the node.
+        This function initializes the ROS 2 node, creates an instance of the QRCodeScannerNode class,
+        and starts the image processing loop. Then the state machine decides what the node does depending on the internal state.
+        The states are:
+        - "ready": The node is running and waits for a control message which activates it. There happens no image
+                capturing or qr code scanning in this state
+        - "searching": in this state the node continuously takes images and uses the OpenCV library to scan them for
+                    QR-Codes. If a valid code is found, the nodes publishes its contents and position and switches
+                    back to the state "ready"
+        It handles the cleanup operations before shutting down the node.
 
-    This function initializes the ROS 2 node, creates an instance of the QRCodeScannerNode class,
-    and starts the image processing loop. Then the state machine decides what the node does depending on the internal state.
-    The states are:
-    - "ready": The node is running and waits for a control message which activates it. There happens no image
-            capturing or qr code scanning in this state
-    - "searching": in this state the node continuously takes images and uses the OpenCV library to scan them for
-                QR-Codes. If a valid code is found, the nodes publishes its contents and position and switches
-                back to the state "ready"
-    It handles the cleanup operations before shutting down the node.
+        Args: 
+            args: Command-line arguments. Default is None.
 
-    Args: 
-        args: Command-line arguments. Default is None.
-
-    Returns: 
-        None
-    """
-    print("Main function")
-    rclpy.init(args=args)
-    node_id = 'qr_code_scanner_node'
-    qr_code_scanner_node = QRCodeScannerNode(node_id)
-    qr_code_scanner_node.main()
-    # start excecuting state machine until node gets destroyed
-    while True:
-        match qr_code_scanner_node.node_state:
+        Returns: 
+            None
+        """
+        print("Main function")
+        
+        # start excecuting state machine until node gets destroyed
+        match self.node_state:
             # check if node is in state "ready"
             # in this state the node waits for the control message to activate the node
             case NodeState.READY:
-                qr_code_scanner_node.get_logger().info("Node is in state ready")
+                self.get_logger().info("Node is in state ready")
                 # if the node got activated it sets its internal state to searching
-                if (qr_code_scanner_node.active):
-                    qr_code_scanner_node.set_state(NodeState.SEARCHING)
+                if (self.active):
+                    self.set_state(NodeState.SEARCHING)
             # check if node is in state "searching"
             # in this state the node will continue to capture images and scan them for qrcodes until node gets deactivated
             case NodeState.SEARCHING:
-                qr_code_scanner_node.get_logger().info("Node is in state searching")
+                self.get_logger().info("Node is in state searching")
                 # if the node is active start qr-code search
-                if (qr_code_scanner_node.active):
+                if (self.active):
                     try:
-                        qr_code_scanner_node.scan_for_qr_code()
+                        self.scan_for_qr_code()
                     except Exception as error:
                         # handle the exception
-                        qr_code_scanner_node.get_logger().info(
+                        self.get_logger().info(
                             f"Error ocurred when scanning QR Code: {error}")
                 # if the node gets deactivated in searching the state changes to "ready"
                 else:
-                    qr_code_scanner_node.set_state(NodeState.READY)
+                    self.set_state(NodeState.READY)
             case _:
                 # if the node is not in a valid state send error code to mission control and destroy node
-                qr_code_scanner_node.get_logger().info(
+                self.get_logger().info(
                     "QR-Code detection node is in unknown state")
-                qr_code_scanner_node._job_finished_error_msg_(
+                self._job_finished_error_msg_(
                     "Node shut down because it is in unknwon state")
-                break
 
-    # destroy the node
+
+def main(args=None) -> None:
+    rclpy.init(args=args)
+    node_id = 'qr_code_scanner_node'
+    qr_code_scanner_node = QRCodeScannerNode(node_id)
     qr_code_scanner_node.destroy_node()
     rclpy.shutdown()
 
