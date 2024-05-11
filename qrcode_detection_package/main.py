@@ -122,12 +122,12 @@ class QRCodeScannerNode(CommonNode):
         """
         # Check which detection style should be used
         if (self.config_detection_method == CaptureImageMethod.LOADIMAGE):
-            #current_path = os.getcwd()
-            #print("Der aktuelle Pfad ist:", current_path)
+            # current_path = os.getcwd()
+            # print("Der aktuelle Pfad ist:", current_path)
             # Path to the test image
             # test_image_path = 'src/qrcode_detection_package/test_image/test3.png'
-            #test_image_path = '/test_image/test3.png'
-            
+            # test_image_path = '/test_image/test3.png'
+
             script_dir = os.path.dirname(os.path.realpath(__file__))
             image_path = os.path.join(script_dir, "../test_image/test3.png")
             print("Der Bildpfad ist:", image_path)
@@ -326,7 +326,7 @@ class QRCodeScannerNode(CommonNode):
                     f"QR-Code detector raised exception: {error}")
         else:
             self.get_logger().info("Could not capture image")
-                
+
     def main(self) -> None:
         """
         The main function initializes the node and runs the state machine over the lifetime of the node.
@@ -348,7 +348,7 @@ class QRCodeScannerNode(CommonNode):
             None
         """
         print("Main function")
-        
+
         # start excecuting state machine until node gets destroyed
         match self.node_state:
             # check if node is in state "ready"

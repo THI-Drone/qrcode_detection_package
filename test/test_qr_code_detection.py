@@ -9,6 +9,7 @@ from interfaces.msg import Control, QRCodeInfo, JobFinished
 from qrcode_detection_package.main import QRCodeScannerNode
 from common_package_py.topic_names import TopicNames
 
+
 def test_qrcode_info_publish():
     executor = SingleThreadedExecutor()
 
@@ -52,8 +53,8 @@ def test_qrcode_info_publish():
 
     executor.spin()
     del executor
-    
-    
+
+
 def test_activate_with_control_message():
     executor = SingleThreadedExecutor()
 
@@ -61,10 +62,10 @@ def test_activate_with_control_message():
     assert not qr_scanner_node.active
 
     test_node = Node("test")
-    
+
     control_publisher = test_node.create_publisher(
-            Control, TopicNames.Control, 10)
-    
+        Control, TopicNames.Control, 10)
+
     def timer_callback():
         nonlocal test_node
         test_node.get_logger().debug("Sending control message to activate QRCodeScannerNode")
@@ -73,23 +74,22 @@ def test_activate_with_control_message():
         msg.target_id = "qr_scanner_node"
         msg.active = True
         msg.payload = ""
-        
+
         control_publisher.publish(msg)
-        
-    def end_timer_callback(): 
+
+    def end_timer_callback():
         assert qr_scanner_node.active
         executor.shutdown(0)
 
-
     publish_control_timer = test_node.create_timer(
         0.1, timer_callback)
-    
+
     end_timer = test_node.create_timer(
         0.2, end_timer_callback)
 
     executor.add_node(qr_scanner_node)
     executor.add_node(test_node)
-    
+
     executor.spin()
-    
+
     del executor
