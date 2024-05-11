@@ -10,13 +10,10 @@ from qrcode_detection_package.main import QRCodeScannerNode
 from common_package_py.topic_names import TopicNames
 
 def test_qrcode_info_publish():
-    rclpy.init(args=[])
     executor = SingleThreadedExecutor()
 
     qr_scanner_node = QRCodeScannerNode("qr_scanner_node")
     assert not qr_scanner_node.active
-    qr_scanner_node._activate_()
-    assert qr_scanner_node.active
 
     test_node = Node("test")
 
@@ -55,11 +52,9 @@ def test_qrcode_info_publish():
 
     executor.spin()
     del executor
-    rclpy.shutdown()
     
     
 def test_activate_with_control_message():
-    rclpy.init(args=[])
     executor = SingleThreadedExecutor()
 
     qr_scanner_node = QRCodeScannerNode("qr_scanner_node")
@@ -81,9 +76,8 @@ def test_activate_with_control_message():
         
         control_publisher.publish(msg)
         
-        # time.sleep(10)
-        
     def end_timer_callback(): 
+        assert qr_scanner_node.active
         executor.shutdown(0)
 
 
@@ -91,12 +85,11 @@ def test_activate_with_control_message():
         0.1, timer_callback)
     
     end_timer = test_node.create_timer(
-        1, end_timer_callback)
+        0.2, end_timer_callback)
 
     executor.add_node(qr_scanner_node)
     executor.add_node(test_node)
     
     executor.spin()
-    assert qr_scanner_node.active
+    
     del executor
-    rclpy.shutdown()

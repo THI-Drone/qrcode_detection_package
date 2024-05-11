@@ -1,3 +1,4 @@
+import os
 import rclpy
 import time
 import subprocess
@@ -121,12 +122,17 @@ class QRCodeScannerNode(CommonNode):
         """
         # Check which detection style should be used
         if (self.config_detection_method == CaptureImageMethod.LOADIMAGE):
+            #current_path = os.getcwd()
+            #print("Der aktuelle Pfad ist:", current_path)
             # Path to the test image
             # test_image_path = 'src/qrcode_detection_package/test_image/test3.png'
-            test_image_path = '/src/qrcode_detection_package/test_image/test3.png'
-
+            #test_image_path = '/test_image/test3.png'
+            
+            script_dir = os.path.dirname(os.path.realpath(__file__))
+            image_path = os.path.join(script_dir, "../test_image/test3.png")
+            print("Der Bildpfad ist:", image_path)
             # Load the test image
-            captured_image = cv2.imread(test_image_path)
+            captured_image = cv2.imread(image_path)
         elif (self.config_detection_method == CaptureImageMethod.OPENCV):
             # Initialize a VideoCapture object for the camera
             cap = cv2.VideoCapture(0)
