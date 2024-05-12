@@ -15,6 +15,7 @@ def test_qrcode_info_publish():
 
     qr_scanner_node = QRCodeScannerNode("qr_scanner_node")
     assert not qr_scanner_node.active
+    qr_scanner_node.set_parameters([rclpy.parameter.Parameter('sim', rclpy.parameter.Parameter.Type.BOOL, True)])
 
     test_node = Node("test")
 
@@ -60,6 +61,7 @@ def test_activate_with_control_message():
 
     qr_scanner_node = QRCodeScannerNode("qr_scanner_node")
     assert not qr_scanner_node.active
+    qr_scanner_node.set_parameters([rclpy.parameter.Parameter('sim', rclpy.parameter.Parameter.Type.BOOL, True)])
 
     test_node = Node("test")
 
@@ -95,6 +97,7 @@ def test_activate_and_recieve_content_job_finished():
 
     qr_scanner_node = QRCodeScannerNode("qr_scanner_node")
     assert not qr_scanner_node.active
+    qr_scanner_node.set_parameters([rclpy.parameter.Parameter('sim', rclpy.parameter.Parameter.Type.BOOL, True)])
 
     test_node = Node("test")
 
@@ -134,6 +137,7 @@ def test_activate_and_recieve_content_QRCode_Info():
 
     qr_scanner_node = QRCodeScannerNode("qr_scanner_node")
     assert not qr_scanner_node.active
+    qr_scanner_node.set_parameters([rclpy.parameter.Parameter('sim', rclpy.parameter.Parameter.Type.BOOL, True)])
 
     test_node = Node("test")
 

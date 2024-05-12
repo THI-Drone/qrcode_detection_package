@@ -8,7 +8,7 @@ from cv2.typing import MatLike
 from std_msgs.msg import String
 from enum import Enum
 from typing import Union, Tuple, List
-from picamera2 import Picamera2
+#from picamera2 import Picamera2
 from common_package_py.common_node import CommonNode
 from common_package_py.topic_names import TopicNames
 from interfaces.msg import QRCodeInfo
@@ -65,6 +65,7 @@ class QRCodeScannerNode(CommonNode):
         self.qr_publisher = self.create_publisher(
             QRCodeInfo, TopicNames.QRCodeInfo, 10)
 
+        self.declare_parameter('sim', True)
         # read sim parameter
         sim_param = self.get_parameter('sim').get_parameter_value().bool_value
         # configure image capturing method
@@ -75,8 +76,9 @@ class QRCodeScannerNode(CommonNode):
 
         if (self.config_detection_method == CaptureImageMethod.PICAM):
             # init picam
-            self.picam2 = Picamera2()
-            self.picam2.start()
+            #self.picam2 = Picamera2()
+            #self.picam2.start()
+            pass
 
         main_timer = self.create_timer(
             0.01, self.main)
@@ -190,7 +192,8 @@ class QRCodeScannerNode(CommonNode):
 
             case CaptureImageMethod.PICAM:
                 try:
-                    captured_image = self.picam2.capture_array("main")
+                    #captured_image = self.picam2.capture_array("main")
+                    pass
                 except:
                     self.get_logger().info("PiCam could not take picture")
                     return None
