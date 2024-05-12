@@ -88,8 +88,8 @@ def test_activate_with_control_message():
     executor.spin()
 
     del executor
-    
-    
+
+
 def test_activate_and_recieve_content_job_finished():
     executor = SingleThreadedExecutor()
 
@@ -127,8 +127,8 @@ def test_activate_and_recieve_content_job_finished():
     executor.spin()
 
     del executor
-    
-    
+
+
 def test_activate_and_recieve_content_QRCode_Info():
     executor = SingleThreadedExecutor()
 
@@ -161,5 +161,5 @@ def test_activate_and_recieve_content_QRCode_Info():
     executor.add_node(test_node)
 
     executor.spin()
-
+    
     del executor

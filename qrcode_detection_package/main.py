@@ -8,7 +8,7 @@ from cv2.typing import MatLike
 from std_msgs.msg import String
 from enum import Enum
 from typing import Union, Tuple, List
-
+from picamera2 import Picamera2
 from common_package_py.common_node import CommonNode
 from common_package_py.topic_names import TopicNames
 from interfaces.msg import QRCodeInfo
@@ -25,9 +25,11 @@ class CaptureImageMethod(Enum):
     # 0 = load stored test image (for testing purposes)
     # 1 = use OpenCV to get image from camera (this is the wanted solution)
     # 2 = use libcamera shell script to take photo and load it (fallback solution)
+    # 3 = use PiCam2 lib to capture image as numpy array (best working solution)
     LOADIMAGE = 0
     OPENCV = 1
     LIBCAMERA = 2
+    PICAM = 3
 
 
 class NoQRCodeDetectedError(Exception):
@@ -63,8 +65,19 @@ class QRCodeScannerNode(CommonNode):
         self.qr_publisher = self.create_publisher(
             QRCodeInfo, TopicNames.QRCodeInfo, 10)
 
+        # read sim parameter
+        sim_param = self.get_parameter('sim').get_parameter_value().bool_value
         # configure image capturing method
-        self.config_detection_method = CaptureImageMethod.LOADIMAGE
+        if (sim_param):
+            self.config_detection_method = CaptureImageMethod.LOADIMAGE
+        else:
+            self.config_detection_method = CaptureImageMethod.PICAM
+
+        if (self.config_detection_method == CaptureImageMethod.PICAM):
+            # init picam
+            self.picam2 = Picamera2()
+            self.picam2.start()
+
         main_timer = self.create_timer(
             0.01, self.main)
 
@@ -121,56 +134,66 @@ class QRCodeScannerNode(CommonNode):
             OpenCV MatLike representing the captured image.
         """
         # Check which detection style should be used
-        if (self.config_detection_method == CaptureImageMethod.LOADIMAGE):
-            # current_path = os.getcwd()
-            # print("Der aktuelle Pfad ist:", current_path)
-            # Path to the test image
-            # test_image_path = 'src/qrcode_detection_package/test_image/test3.png'
-            # test_image_path = '/test_image/test3.png'
+        match self.config_detection_method:
+            case CaptureImageMethod.LOADIMAGE:
+                # current_path = os.getcwd()
+                # print("Der aktuelle Pfad ist:", current_path)
+                # Path to the test image
+                # test_image_path = 'src/qrcode_detection_package/test_image/test3.png'
+                # test_image_path = '/test_image/test3.png'
 
-            script_dir = os.path.dirname(os.path.realpath(__file__))
-            image_path = os.path.join(script_dir, "../test_image/test3.png")
-            print("Der Bildpfad ist:", image_path)
-            # Load the test image
-            captured_image = cv2.imread(image_path)
-        elif (self.config_detection_method == CaptureImageMethod.OPENCV):
-            # Initialize a VideoCapture object for the camera
-            cap = cv2.VideoCapture(0)
+                script_dir = os.path.dirname(os.path.realpath(__file__))
+                image_path = os.path.join(
+                    script_dir, "../test_image/test3.png")
+                print("Der Bildpfad ist:", image_path)
+                # Load the test image
+                captured_image = cv2.imread(image_path)
 
-            # To-Do: Evaluate influence of different camera settings to quality and performance on the real hardware
-            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 4056)
-            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 3040)
+            case CaptureImageMethod.OPENCV:
+                # Initialize a VideoCapture object for the camera
+                cap = cv2.VideoCapture(0)
 
-            # Check if the VideoCapture object was opened successfully
-            if not cap.isOpened():
-                self.get_logger().info("Error: Unable to open camera")
-                return None
-            else:
-                # Capture an image from the camera
-                ret, img = cap.read()
+                # To-Do: Evaluate influence of different camera settings to quality and performance on the real hardware
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, 4056)
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 3040)
 
-                # Check if the image was captured successfully
-                if not ret:
-                    self.get_logger().info("Error: Unable to capture image from camera")
+                # Check if the VideoCapture object was opened successfully
+                if not cap.isOpened():
+                    self.get_logger().info("Error: Unable to open camera")
                     return None
                 else:
-                    captured_image = img
+                    # Capture an image from the camera
+                    ret, img = cap.read()
 
-            # Release the VideoCapture object
-            cap.release()
+                    # Check if the image was captured successfully
+                    if not ret:
+                        self.get_logger().info("Error: Unable to capture image from camera")
+                        return None
+                    else:
+                        captured_image = img
 
-        elif (self.config_detection_method == CaptureImageMethod.LIBCAMERA):
-            try:
-                # set image path with timestamp as name
-                timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
-                image_path = f"/image/{timestamp}.jpg"
-                # execute libcamera command to capture imagae
-                command = ["libcamera-jpeg", "-o", image_path]
-                subprocess.run(command)
-                captured_image = cv2.imread(image_path)
-            except:
-                self.get_logger().info("libcamera could not take picture")
-                return None
+                # Release the VideoCapture object
+                cap.release()
+
+            case CaptureImageMethod.LIBCAMERA:
+                try:
+                    # set image path with timestamp as name
+                    timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
+                    image_path = f"/image/{timestamp}.jpg"
+                    # execute libcamera command to capture imagae
+                    command = ["libcamera-jpeg", "-o", image_path]
+                    subprocess.run(command)
+                    captured_image = cv2.imread(image_path)
+                except:
+                    self.get_logger().info("libcamera could not take picture")
+                    return None
+
+            case CaptureImageMethod.PICAM:
+                try:
+                    captured_image = self.picam2.capture_array("main")
+                except:
+                    self.get_logger().info("PiCam could not take picture")
+                    return None
 
         return captured_image
 
