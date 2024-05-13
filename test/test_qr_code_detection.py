@@ -11,6 +11,7 @@ from common_package_py.topic_names import TopicNames
 
 
 def test_qrcode_info_publish():
+    # this test initialises a object of the QRCodeScannerNode and uses its inherited job_finished_custom method to publish a job finished message.
     executor = SingleThreadedExecutor()
 
     qr_scanner_node = QRCodeScannerNode("qr_scanner_node")
@@ -57,6 +58,7 @@ def test_qrcode_info_publish():
 
 
 def test_activate_with_control_message():
+    # This test checks wether a QRCodeScannerNode can be activated via a message on the control topic
     executor = SingleThreadedExecutor()
 
     qr_scanner_node = QRCodeScannerNode("qr_scanner_node")
@@ -93,6 +95,7 @@ def test_activate_with_control_message():
 
 
 def test_activate_and_recieve_content_job_finished():
+    # this test activates the QRCodeScannerNode and checks wether it publishes a job_finished message
     executor = SingleThreadedExecutor()
 
     qr_scanner_node = QRCodeScannerNode("qr_scanner_node")
@@ -133,6 +136,7 @@ def test_activate_and_recieve_content_job_finished():
 
 
 def test_activate_and_recieve_content_QRCode_Info():
+    # this test activates the QRCodeScannerNode and checks wether it QRCodeInfo message
     executor = SingleThreadedExecutor()
 
     qr_scanner_node = QRCodeScannerNode("qr_scanner_node")
