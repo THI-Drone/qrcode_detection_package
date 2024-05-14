@@ -13,6 +13,7 @@ from common_package_py.common_node import CommonNode
 from common_package_py.topic_names import TopicNames
 from interfaces.msg import QRCodeInfo
 from interfaces.msg import Control
+from rclpy.executors import SingleThreadedExecutor
 
 
 class NodeState(Enum):
@@ -373,8 +374,6 @@ class QRCodeScannerNode(CommonNode):
         Returns: 
             None
         """
-        print("Main function")
-
         # start excecuting state machine until node gets destroyed
         match self.node_state:
             # check if node is in state "ready"
@@ -411,6 +410,13 @@ def main(args=None) -> None:
     rclpy.init(args=args)
     node_id = 'qr_code_scanner_node'
     qr_code_scanner_node = QRCodeScannerNode(node_id)
+    
+    executor = SingleThreadedExecutor()
+    executor.add_node(qr_code_scanner_node)
+
+    executor.spin()
+    
+    del executor
     qr_code_scanner_node.destroy_node()
     rclpy.shutdown()
 
