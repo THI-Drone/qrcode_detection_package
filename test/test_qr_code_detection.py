@@ -71,7 +71,6 @@ def test_activate_with_control_message():
         Control, TopicNames.Control, 10)
 
     test_node.get_logger().debug("Sending control message to activate QRCodeScannerNode")
-    print("Test print")
     msg = Control()
     msg.target_id = "qr_scanner_node"
     msg.active = True
@@ -170,4 +169,40 @@ def test_activate_and_recieve_content_QRCode_Info():
 
     executor.spin()
     
+    del executor
+
+def test_deactivate_with_control_message():
+    # This test checks wether a QRCodeScannerNode can be deactivated via a message on the control topic
+    executor = SingleThreadedExecutor()
+
+    qr_scanner_node = QRCodeScannerNode("qr_scanner_node")
+    qr_scanner_node.set_parameters([rclpy.parameter.Parameter('sim', rclpy.parameter.Parameter.Type.BOOL, True)])
+    assert not qr_scanner_node.active
+    qr_scanner_node._activate_()
+    assert qr_scanner_node.active
+   
+    test_node = Node("test")
+
+    control_publisher = test_node.create_publisher(
+        Control, TopicNames.Control, 10)
+
+    msg = Control()
+    msg.target_id = "qr_scanner_node"
+    msg.active = False
+    msg.payload = ""
+
+    control_publisher.publish(msg)
+
+    def end_timer_callback():
+        assert not qr_scanner_node.active
+        executor.shutdown(0)
+
+    end_timer = test_node.create_timer(
+        0.01, end_timer_callback)
+
+    executor.add_node(qr_scanner_node)
+    executor.add_node(test_node)
+
+    executor.spin()
+
     del executor
