@@ -82,7 +82,7 @@ class QRCodeScannerNode(CommonNode):
             pass
 
         main_timer = self.create_timer(
-            0.01, self.main)
+            0.05, self.main)
 
     def __callback_control(self, control_msg: Control) -> None:
         """
@@ -100,10 +100,9 @@ class QRCodeScannerNode(CommonNode):
         Returns: 
             None
         """
-        self.get_logger().info("Recieved control message1")
         print("Callback")
         if (control_msg.target_id == self.get_name()):
-            self.get_logger().info("Recieved control message")
+            self.get_logger().info("Received control message")
             if (control_msg.active):
                 self._activate_()
             else:
@@ -379,14 +378,12 @@ class QRCodeScannerNode(CommonNode):
             # check if node is in state "ready"
             # in this state the node waits for the control message to activate the node
             case NodeState.READY:
-                self.get_logger().info("Node is in state ready")
                 # if the node got activated it sets its internal state to searching
                 if (self.active):
                     self.set_state(NodeState.SEARCHING)
             # check if node is in state "searching"
             # in this state the node will continue to capture images and scan them for qrcodes until node gets deactivated
             case NodeState.SEARCHING:
-                self.get_logger().info("Node is in state searching")
                 # if the node is active start qr-code search
                 if (self.active):
                     try:
