@@ -65,10 +65,11 @@ class QRCodeScannerNode(CommonNode):
         self.qr_code_detector = cv2.QRCodeDetector()
         self.qr_publisher = self.create_publisher(
             QRCodeInfo, TopicNames.QRCodeInfo, 10)
-        self._activate_()
+
         self.declare_parameter('sim', True)
         # read sim parameter
         sim_param = self.get_parameter('sim').get_parameter_value().bool_value
+        self.picam2 = None
         # configure image capturing method
         if (sim_param):
             self.config_detection_method = CaptureImageMethod.LOADIMAGE
@@ -78,13 +79,14 @@ class QRCodeScannerNode(CommonNode):
         if (self.config_detection_method == CaptureImageMethod.PICAM):
             # init picam
             self.picam2 = Picamera2()
+            self.picam2.configure(self.picam2.create_still_configuration())
             self.picam2.start()
         
         # count detected markers for simulation purposes
         self.numDetMark = 0
 
         main_timer = self.create_timer(
-            0.05, self.main)
+            0.1, self.main)
 
     def __callback_control(self, control_msg: Control) -> None:
         """
@@ -139,15 +141,19 @@ class QRCodeScannerNode(CommonNode):
         # Check which detection style should be used
         match self.config_detection_method:
             case CaptureImageMethod.LOADIMAGE:
-                script_dir = os.path.dirname(os.path.realpath(__file__))
-                # use path of different images for sim
-                image_num = self.numDetMark % 2
-                rel_path = "../test_image/qrtest_content_" + str(image_num) + ".png"
-                image_path = os.path.join(
-                    script_dir, rel_path)
-                # Load the test image
-                captured_image = cv2.imread(image_path)
-                self.numDetMark += 1
+                try:
+                    script_dir = os.path.dirname(os.path.realpath(__file__))
+                    # use path of different images for sim
+                    image_num = self.numDetMark % 2
+                    rel_path = "../test_image/qrtest_content_" + str(image_num) + ".png"
+                    image_path = os.path.join(
+                        script_dir, rel_path)
+                    # Load the test image
+                    captured_image = cv2.imread(image_path)
+                    self.numDetMark += 1
+                except:
+                    self.get_logger().info("Image could not be loaded")
+                    return None
 
             case CaptureImageMethod.OPENCV:
                 # Initialize a VideoCapture object for the camera
@@ -159,7 +165,7 @@ class QRCodeScannerNode(CommonNode):
 
                 # Check if the VideoCapture object was opened successfully
                 if not cap.isOpened():
-                    self.get_logger().info("Error: Unable to open camera")
+                    self.get_logger().info("Unable to open camera OpenCV")
                     return None
                 else:
                     # Capture an image from the camera
@@ -167,7 +173,7 @@ class QRCodeScannerNode(CommonNode):
 
                     # Check if the image was captured successfully
                     if not ret:
-                        self.get_logger().info("Error: Unable to capture image from camera")
+                        self.get_logger().info("OpenCV could not take picture")
                         return None
                     else:
                         captured_image = img
@@ -189,10 +195,14 @@ class QRCodeScannerNode(CommonNode):
                     return None
 
             case CaptureImageMethod.PICAM:
-                try:
-                    captured_image = self.picam2.capture_array("main")
-                except:
-                    self.get_logger().info("PiCam could not take picture")
+                if self.picam2 is not None:
+                    try:
+                        captured_image = self.picam2.capture_array("main")
+                    except:
+                        self.get_logger().info("PiCam could not take picture")
+                        return None
+                else:
+                    self.get_logger().info("PiCam is not initialized")
                     return None
 
         return captured_image
@@ -261,9 +271,15 @@ class QRCodeScannerNode(CommonNode):
                 - The x-coordinate of the geometric midpoint of the detected QR code.
                 - The y-coordinate of the geometric midpoint of the detected QR code.
         """
+        rel_midpoint_x = 0
+        rel_midpoint_y = 0
+        
         # detect and decode QR codes in the image using OpenCV library
-        decoded_info, points, _ = self.qr_code_detector.detectAndDecode(image)
-
+        try:
+            decoded_info, points, _ = self.qr_code_detector.detectAndDecode(image)
+        except:
+            raise NoQRCodeDetectedError("Exception while detecting QR Code")
+        
         # check if QR code was successfully decoded
         if (len(decoded_info) > 0):
             # Log QR-Code content
@@ -346,7 +362,7 @@ class QRCodeScannerNode(CommonNode):
             except NoQRCodeDetectedError as error:
                 # QR code detector raised exception
                 self.get_logger().info(
-                    f"QR-Code detector raised exception: {error}")
+                    f"No QR Code could be found in the image: {error}")
         else:
             self.get_logger().info("Could not capture image")
 
