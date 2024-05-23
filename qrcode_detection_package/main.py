@@ -336,8 +336,12 @@ class QRCodeScannerNode(CommonNode):
                     # if a QR-Code was successfully detected save the image and publish contents on the topic
 
                     # save the image that contains successfully decoded QR-Code
+                    img_dir = "images"
+                    if not os.path.exists(img_dir):
+                        os.makedirs(img_dir)
+
                     timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
-                    img_path = f'images/{timestamp}.jpg'
+                    img_path = f'{img_dir}/{timestamp}.jpg'
                     cv2.imwrite(img_path, captured_image)
                     self.get_logger().info(
                         f"Saved image of detected QR-Code as: {img_path}")
