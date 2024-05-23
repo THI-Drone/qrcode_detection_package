@@ -93,7 +93,7 @@ def test_activate_with_control_message():
     del executor
 
 
-def test_activate_and_recieve_content_job_finished():
+def test_activate_and_receive_content_job_finished():
     # this test activates the QRCodeScannerNode and checks wether it publishes a job_finished message
     executor = SingleThreadedExecutor()
 
@@ -118,7 +118,7 @@ def test_activate_and_recieve_content_job_finished():
         assert msg.error_code == 0
 
         payload_check = {}
-        payload_check["marker"] = "42"
+        payload_check["marker"] = "1"
         assert json.loads(msg.payload) == payload_check
         assert not qr_scanner_node.active
         executor.shutdown(0)
@@ -134,7 +134,7 @@ def test_activate_and_recieve_content_job_finished():
     del executor
 
 
-def test_activate_and_recieve_content_QRCode_Info():
+def test_activate_and_receive_content_QRCode_Info():
     # this test activates the QRCodeScannerNode and checks wether it QRCodeInfo message
     executor = SingleThreadedExecutor()
 
@@ -206,3 +206,4 @@ def test_deactivate_with_control_message():
     executor.spin()
 
     del executor
+    

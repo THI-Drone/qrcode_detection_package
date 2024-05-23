@@ -65,7 +65,7 @@ class QRCodeScannerNode(CommonNode):
         self.qr_code_detector = cv2.QRCodeDetector()
         self.qr_publisher = self.create_publisher(
             QRCodeInfo, TopicNames.QRCodeInfo, 10)
-
+        self._activate_()
         self.declare_parameter('sim', True)
         # read sim parameter
         sim_param = self.get_parameter('sim').get_parameter_value().bool_value
@@ -80,6 +80,9 @@ class QRCodeScannerNode(CommonNode):
             #self.picam2 = Picamera2()
             #self.picam2.start()
             pass
+        
+        # count detected markers for simulation purposes
+        self.numDetMark = 0
 
         main_timer = self.create_timer(
             0.05, self.main)
@@ -100,7 +103,6 @@ class QRCodeScannerNode(CommonNode):
         Returns: 
             None
         """
-        print("Callback")
         if (control_msg.target_id == self.get_name()):
             self.get_logger().info("Received control message")
             if (control_msg.active):
@@ -138,18 +140,15 @@ class QRCodeScannerNode(CommonNode):
         # Check which detection style should be used
         match self.config_detection_method:
             case CaptureImageMethod.LOADIMAGE:
-                # current_path = os.getcwd()
-                # print("Der aktuelle Pfad ist:", current_path)
-                # Path to the test image
-                # test_image_path = 'src/qrcode_detection_package/test_image/test3.png'
-                # test_image_path = '/test_image/test3.png'
-
                 script_dir = os.path.dirname(os.path.realpath(__file__))
+                # use path of different images for sim
+                image_num = self.numDetMark % 2
+                rel_path = "../test_image/qrtest_content_" + str(image_num) + ".png"
                 image_path = os.path.join(
-                    script_dir, "../test_image/test3.png")
-                print("Der Bildpfad ist:", image_path)
+                    script_dir, rel_path)
                 # Load the test image
                 captured_image = cv2.imread(image_path)
+                self.numDetMark += 1
 
             case CaptureImageMethod.OPENCV:
                 # Initialize a VideoCapture object for the camera
@@ -400,7 +399,7 @@ class QRCodeScannerNode(CommonNode):
                 self.get_logger().info(
                     "QR-Code detection node is in unknown state")
                 self._job_finished_error_msg_(
-                    "Node shut down because it is in unknwon state")
+                    "Node shut down because it is in unknown state")
 
 
 def main(args=None) -> None:
