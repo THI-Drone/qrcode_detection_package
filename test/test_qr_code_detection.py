@@ -16,7 +16,8 @@ def test_qrcode_info_publish():
 
     qr_scanner_node = QRCodeScannerNode("qr_scanner_node")
     assert not qr_scanner_node.active
-    qr_scanner_node.set_parameters([rclpy.parameter.Parameter('sim', rclpy.parameter.Parameter.Type.BOOL, True)])
+    qr_scanner_node.set_parameters([rclpy.parameter.Parameter(
+        'sim', rclpy.parameter.Parameter.Type.BOOL, True)])
 
     test_node = Node("test")
 
@@ -63,7 +64,8 @@ def test_activate_with_control_message():
 
     qr_scanner_node = QRCodeScannerNode("qr_scanner_node")
     assert not qr_scanner_node.active
-    qr_scanner_node.set_parameters([rclpy.parameter.Parameter('sim', rclpy.parameter.Parameter.Type.BOOL, True)])
+    qr_scanner_node.set_parameters([rclpy.parameter.Parameter(
+        'sim', rclpy.parameter.Parameter.Type.BOOL, True)])
 
     test_node = Node("test")
 
@@ -99,7 +101,8 @@ def test_activate_and_receive_content_job_finished():
 
     qr_scanner_node = QRCodeScannerNode("qr_scanner_node")
     assert not qr_scanner_node.active
-    qr_scanner_node.set_parameters([rclpy.parameter.Parameter('sim', rclpy.parameter.Parameter.Type.BOOL, True)])
+    qr_scanner_node.set_parameters([rclpy.parameter.Parameter(
+        'sim', rclpy.parameter.Parameter.Type.BOOL, True)])
 
     test_node = Node("test")
 
@@ -140,7 +143,8 @@ def test_activate_and_receive_content_QRCode_Info():
 
     qr_scanner_node = QRCodeScannerNode("qr_scanner_node")
     assert not qr_scanner_node.active
-    qr_scanner_node.set_parameters([rclpy.parameter.Parameter('sim', rclpy.parameter.Parameter.Type.BOOL, True)])
+    qr_scanner_node.set_parameters([rclpy.parameter.Parameter(
+        'sim', rclpy.parameter.Parameter.Type.BOOL, True)])
 
     test_node = Node("test")
 
@@ -168,19 +172,21 @@ def test_activate_and_receive_content_QRCode_Info():
     executor.add_node(test_node)
 
     executor.spin()
-    
+
     del executor
+
 
 def test_deactivate_with_control_message():
     # This test checks wether a QRCodeScannerNode can be deactivated via a message on the control topic
     executor = SingleThreadedExecutor()
 
     qr_scanner_node = QRCodeScannerNode("qr_scanner_node")
-    qr_scanner_node.set_parameters([rclpy.parameter.Parameter('sim', rclpy.parameter.Parameter.Type.BOOL, True)])
+    qr_scanner_node.set_parameters([rclpy.parameter.Parameter(
+        'sim', rclpy.parameter.Parameter.Type.BOOL, True)])
     assert not qr_scanner_node.active
     qr_scanner_node._activate_()
     assert qr_scanner_node.active
-   
+
     test_node = Node("test")
 
     control_publisher = test_node.create_publisher(
@@ -206,4 +212,3 @@ def test_deactivate_with_control_message():
     executor.spin()
 
     del executor
-    

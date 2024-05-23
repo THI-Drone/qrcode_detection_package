@@ -1,20 +1,20 @@
 import os
-os.environ["OPENCV_LOG_LEVEL"]="SILENT"
-import rclpy
-import time
-import subprocess
-from rclpy.node import Node
-import cv2
-from cv2.typing import MatLike
-from std_msgs.msg import String
-from enum import Enum
-from typing import Union, Tuple, List
-from picamera2 import Picamera2
-from common_package_py.common_node import CommonNode
-from common_package_py.topic_names import TopicNames
-from interfaces.msg import QRCodeInfo
+os.environ["OPENCV_LOG_LEVEL"] = "SILENT"
 from interfaces.msg import Control
+from interfaces.msg import QRCodeInfo
+from common_package_py.topic_names import TopicNames
+from common_package_py.common_node import CommonNode
+from typing import Union, Tuple, List
+from enum import Enum
+from std_msgs.msg import String
+from cv2.typing import MatLike
+import cv2
+from picamera2 import Picamera2
 from rclpy.executors import SingleThreadedExecutor
+from rclpy.node import Node
+import subprocess
+import time
+import rclpy
 
 
 class NodeState(Enum):
@@ -139,6 +139,7 @@ class QRCodeScannerNode(CommonNode):
         Returns: 
             OpenCV MatLike representing the captured image.
         """
+        captured_image = None
         # Check which detection style should be used
         match self.config_detection_method:
             case CaptureImageMethod.LOADIMAGE:
@@ -146,7 +147,8 @@ class QRCodeScannerNode(CommonNode):
                     script_dir = os.path.dirname(os.path.realpath(__file__))
                     # use path of different images for sim
                     image_num = self.numDetMark % 2
-                    rel_path = "../test_image/qrtest_c!ontent_" + str(image_num) + ".png"
+                    rel_path = "../test_image/qrtest_c!ontent_" + \
+                        str(image_num) + ".png"
                     image_path = os.path.join(
                         script_dir, rel_path)
                     # Load the test image
@@ -274,13 +276,14 @@ class QRCodeScannerNode(CommonNode):
         """
         rel_midpoint_x = 0
         rel_midpoint_y = 0
-        
+
         # detect and decode QR codes in the image using OpenCV library
         try:
-            decoded_info, points, _ = self.qr_code_detector.detectAndDecode(image)
+            decoded_info, points, _ = self.qr_code_detector.detectAndDecode(
+                image)
         except:
             raise NoQRCodeDetectedError("Exception while detecting QR Code")
-        
+
         # check if QR code was successfully decoded
         if (len(decoded_info) > 0):
             # Log QR-Code content
@@ -421,12 +424,12 @@ def main(args=None) -> None:
     rclpy.init(args=args)
     node_id = 'qr_code_scanner_node'
     qr_code_scanner_node = QRCodeScannerNode(node_id)
-    
+
     executor = SingleThreadedExecutor()
     executor.add_node(qr_code_scanner_node)
 
     executor.spin()
-    
+
     del executor
     qr_code_scanner_node.destroy_node()
     rclpy.shutdown()
