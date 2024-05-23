@@ -1,4 +1,5 @@
 import os
+os.environ["OPENCV_LOG_LEVEL"]="SILENT"
 import rclpy
 import time
 import subprocess
@@ -81,7 +82,7 @@ class QRCodeScannerNode(CommonNode):
             self.picam2 = Picamera2()
             self.picam2.configure(self.picam2.create_still_configuration())
             self.picam2.start()
-        
+
         # count detected markers for simulation purposes
         self.numDetMark = 0
 
@@ -145,7 +146,7 @@ class QRCodeScannerNode(CommonNode):
                     script_dir = os.path.dirname(os.path.realpath(__file__))
                     # use path of different images for sim
                     image_num = self.numDetMark % 2
-                    rel_path = "../test_image/qrtest_content_" + str(image_num) + ".png"
+                    rel_path = "../test_image/qrtest_c!ontent_" + str(image_num) + ".png"
                     image_path = os.path.join(
                         script_dir, rel_path)
                     # Load the test image
