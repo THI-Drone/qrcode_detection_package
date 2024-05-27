@@ -1,12 +1,15 @@
+import os
+os.environ["OPENCV_LOG_LEVEL"] = "SILENT"
 import rclpy
 import time
 import subprocess
 from rclpy.node import Node
+from rclpy.executors import SingleThreadedExecutor
 import cv2
+from cv2.typing import MatLike
 from std_msgs.msg import String
 from enum import Enum
 from typing import Union, Tuple, List
-
 from common_package_py.common_node import CommonNode
 from common_package_py.topic_names import TopicNames
 from interfaces.msg import QRCodeInfo
@@ -23,9 +26,11 @@ class CaptureImageMethod(Enum):
     # 0 = load stored test image (for testing purposes)
     # 1 = use OpenCV to get image from camera (this is the wanted solution)
     # 2 = use libcamera shell script to take photo and load it (fallback solution)
+    # 3 = use PiCam2 lib to capture image as numpy array (best working solution)
     LOADIMAGE = 0
     OPENCV = 1
     LIBCAMERA = 2
+    PICAM = 3
 
 
 class NoQRCodeDetectedError(Exception):
@@ -61,8 +66,28 @@ class QRCodeScannerNode(CommonNode):
         self.qr_publisher = self.create_publisher(
             QRCodeInfo, TopicNames.QRCodeInfo, 10)
 
+        self.declare_parameter('sim', True)
+        # read sim parameter
+        sim_param = self.get_parameter('sim').get_parameter_value().bool_value
+        self.picam2 = None
         # configure image capturing method
-        self.config_detection_method = CaptureImageMethod.LOADIMAGE
+        if (sim_param):
+            self.config_detection_method = CaptureImageMethod.LOADIMAGE
+        else:
+            self.config_detection_method = CaptureImageMethod.PICAM
+
+        if (self.config_detection_method == CaptureImageMethod.PICAM):
+            # init picam
+            from picamera2 import Picamera2
+            self.picam2 = Picamera2()
+            # self.picam2.configure(self.picam2.create_still_configuration())
+            self.picam2.start()
+
+        # count detected markers for simulation purposes
+        self.numDetMark = 0
+
+        main_timer = self.create_timer(
+            0.1, self.main)
 
     def __callback_control(self, control_msg: Control) -> None:
         """
@@ -81,7 +106,7 @@ class QRCodeScannerNode(CommonNode):
             None
         """
         if (control_msg.target_id == self.get_name()):
-            self.get_logger().info("Recieved control message")
+            self.get_logger().info("Received control message")
             if (control_msg.active):
                 self._activate_()
             else:
@@ -100,7 +125,7 @@ class QRCodeScannerNode(CommonNode):
         self.node_state = state
         self.get_logger().info(f"Set node to state {state}")
 
-    def __capture_image(self) -> Union[None, cv2.MatLike]:
+    def __capture_image(self) -> Union[None, MatLike]:
         """
         Capture an image either from the camera or a test image, depending on the configuration.
 
@@ -114,51 +139,74 @@ class QRCodeScannerNode(CommonNode):
         Returns: 
             OpenCV MatLike representing the captured image.
         """
+        captured_image = None
         # Check which detection style should be used
-        if (self.config_detection_method == CaptureImageMethod.LOADIMAGE):
-            # Path to the test image
-            test_image_path = 'src/qrcode_detection_package/test_image/test3.png'
+        match self.config_detection_method:
+            case CaptureImageMethod.LOADIMAGE:
+                try:
+                    script_dir = os.path.dirname(os.path.realpath(__file__))
+                    # use path of different images for sim
+                    image_num = self.numDetMark % 2
+                    rel_path = "../test_image/qrtest_content_" + \
+                        str(image_num) + ".png"
+                    image_path = os.path.join(
+                        script_dir, rel_path)
+                    # Load the test image
+                    captured_image = cv2.imread(image_path)
+                    self.numDetMark += 1
+                except:
+                    self.get_logger().info("Image could not be loaded")
+                    return None
 
-            # Load the test image
-            captured_image = cv2.imread(test_image_path)
-        elif (self.config_detection_method == CaptureImageMethod.OPENCV):
-            # Initialize a VideoCapture object for the camera
-            cap = cv2.VideoCapture(0)
+            case CaptureImageMethod.OPENCV:
+                # Initialize a VideoCapture object for the camera
+                cap = cv2.VideoCapture(0)
 
-            # To-Do: Evaluate influence of different camera settings to quality and performance on the real hardware
-            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 4056)
-            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 3040)
+                # To-Do: Evaluate influence of different camera settings to quality and performance on the real hardware
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, 4056)
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 3040)
 
-            # Check if the VideoCapture object was opened successfully
-            if not cap.isOpened():
-                self.get_logger().info("Error: Unable to open camera")
-                return None
-            else:
-                # Capture an image from the camera
-                ret, img = cap.read()
-
-                # Check if the image was captured successfully
-                if not ret:
-                    self.get_logger().info("Error: Unable to capture image from camera")
+                # Check if the VideoCapture object was opened successfully
+                if not cap.isOpened():
+                    self.get_logger().info("Unable to open camera OpenCV")
                     return None
                 else:
-                    captured_image = img
+                    # Capture an image from the camera
+                    ret, img = cap.read()
 
-            # Release the VideoCapture object
-            cap.release()
+                    # Check if the image was captured successfully
+                    if not ret:
+                        self.get_logger().info("OpenCV could not take picture")
+                        return None
+                    else:
+                        captured_image = img
 
-        elif (self.config_detection_method == CaptureImageMethod.LIBCAMERA):
-            try:
-                # set image path with timestamp as name
-                timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
-                image_path = f"/image/{timestamp}.jpg"
-                # execute libcamera command to capture imagae
-                command = ["libcamera-jpeg", "-o", image_path]
-                subprocess.run(command)
-                captured_image = cv2.imread(image_path)
-            except:
-                self.get_logger().info("libcamera could not take picture")
-                return None
+                # Release the VideoCapture object
+                cap.release()
+
+            case CaptureImageMethod.LIBCAMERA:
+                try:
+                    # set image path with timestamp as name
+                    timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
+                    image_path = f"/image/{timestamp}.jpg"
+                    # execute libcamera command to capture imagae
+                    command = ["libcamera-jpeg", "-o", image_path]
+                    subprocess.run(command)
+                    captured_image = cv2.imread(image_path)
+                except:
+                    self.get_logger().info("libcamera could not take picture")
+                    return None
+
+            case CaptureImageMethod.PICAM:
+                if self.picam2 is not None:
+                    try:
+                        captured_image = self.picam2.capture_array("main")
+                    except:
+                        self.get_logger().info("PiCam could not take picture")
+                        return None
+                else:
+                    self.get_logger().info("PiCam is not initialized")
+                    return None
 
         return captured_image
 
@@ -208,7 +256,7 @@ class QRCodeScannerNode(CommonNode):
 
         return (rel_midpoint_x_percent, rel_midpoint_y_percent)
 
-    def __detect_qr_codes(self, image: cv2.MatLike) -> Tuple[str, float, float]:
+    def __detect_qr_codes(self, image: MatLike) -> Tuple[str, float, float]:
         """
         Detects QR codes in the provided image and calculates the midpoint of the bounding rectangle.
 
@@ -226,8 +274,15 @@ class QRCodeScannerNode(CommonNode):
                 - The x-coordinate of the geometric midpoint of the detected QR code.
                 - The y-coordinate of the geometric midpoint of the detected QR code.
         """
+        rel_midpoint_x = 0
+        rel_midpoint_y = 0
+
         # detect and decode QR codes in the image using OpenCV library
-        decoded_info, points, _ = self.qr_code_detector.detectAndDecode(image)
+        try:
+            decoded_info, points, _ = self.qr_code_detector.detectAndDecode(
+                image)
+        except:
+            raise NoQRCodeDetectedError("Exception while detecting QR Code")
 
         # check if QR code was successfully decoded
         if (len(decoded_info) > 0):
@@ -281,8 +336,12 @@ class QRCodeScannerNode(CommonNode):
                     # if a QR-Code was successfully detected save the image and publish contents on the topic
 
                     # save the image that contains successfully decoded QR-Code
+                    img_dir = "images"
+                    if not os.path.exists(img_dir):
+                        os.makedirs(img_dir)
+
                     timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
-                    img_path = f'images/{timestamp}.jpg'
+                    img_path = f'{img_dir}/{timestamp}.jpg'
                     cv2.imwrite(img_path, captured_image)
                     self.get_logger().info(
                         f"Saved image of detected QR-Code as: {img_path}")
@@ -311,71 +370,84 @@ class QRCodeScannerNode(CommonNode):
             except NoQRCodeDetectedError as error:
                 # QR code detector raised exception
                 self.get_logger().info(
-                    f"QR-Code detector raised exception: {error}")
+                    f"No QR Code could be found in the image: {error}")
         else:
             self.get_logger().info("Could not capture image")
 
+    def main(self) -> None:
+        """
+        The main function initializes the node and runs the state machine over the lifetime of the node.
+
+        This function initializes the ROS 2 node, creates an instance of the QRCodeScannerNode class,
+        and starts the image processing loop. Then the state machine decides what the node does depending on the internal state.
+        The states are:
+        - "ready": The node is running and waits for a control message which activates it. There happens no image
+                capturing or qr code scanning in this state
+        - "searching": in this state the node continuously takes images and uses the OpenCV library to scan them for
+                    QR-Codes. If a valid code is found, the nodes publishes its contents and position and switches
+                    back to the state "ready"
+        It handles the cleanup operations before shutting down the node.
+
+        Args: 
+            args: Command-line arguments. Default is None.
+
+        Returns: 
+            None
+        """
+        # start excecuting state machine until node gets destroyed
+        match self.node_state:
+            # check if node is in state "ready"
+            # in this state the node waits for the control message to activate the node
+            case NodeState.READY:
+                # if the node got activated it sets its internal state to searching
+                if (self.active):
+                    self.set_state(NodeState.SEARCHING)
+            # check if node is in state "searching"
+            # in this state the node will continue to capture images and scan them for qrcodes until node gets deactivated
+            case NodeState.SEARCHING:
+                # if the node is active start qr-code search
+                if (self.active):
+                    try:
+                        self.scan_for_qr_code()
+                    except Exception as error:
+                        # handle the exception
+                        self.get_logger().info(
+                            f"Error ocurred when scanning QR Code: {error}")
+                # if the node gets deactivated in searching the state changes to "ready"
+                else:
+                    self.set_state(NodeState.READY)
+            case _:
+                # if the node is not in a valid state send error code to mission control and destroy node
+                self.get_logger().info(
+                    "QR-Code detection node is in unknown state")
+                self._job_finished_error_msg_(
+                    "Node shut down because it is in unknown state")
+
 
 def main(args=None) -> None:
-    """
-    The main function initializes the node and runs the state machine over the lifetime of the node.
-
-    This function initializes the ROS 2 node, creates an instance of the QRCodeScannerNode class,
-    and starts the image processing loop. Then the state machine decides what the node does depending on the internal state.
-    The states are:
-    - "ready": The node is running and waits for a control message which activates it. There happens no image
-               capturing or qr code scanning in this state
-    - "searching": in this state the node continuously takes images and uses the OpenCV library to scan them for
-                   QR-Codes. If a valid code is found, the nodes publishes its contents and position and switches
-                   back to the state "ready"
-    It handles the cleanup operations before shutting down the node.
-
-    Args: 
-        args: Command-line arguments. Default is None.
-
-    Returns: 
-        None
-    """
     rclpy.init(args=args)
     node_id = 'qr_code_scanner_node'
     qr_code_scanner_node = QRCodeScannerNode(node_id)
 
-    # start excecuting state machine until node gets destroyed
-    while True:
-        match qr_code_scanner_node.node_state:
-            # check if node is in state "ready"
-            # in this state the node waits for the control message to activate the node
-            case NodeState.READY:
-                qr_code_scanner_node.get_logger().info("Node is in state ready")
-                # if the node got activated it sets its internal state to searching
-                if (qr_code_scanner_node.active):
-                    qr_code_scanner_node.set_state(NodeState.SEARCHING)
-            # check if node is in state "searching"
-            # in this state the node will continue to capture images and scan them for qrcodes until node gets deactivated
-            case NodeState.SEARCHING:
-                qr_code_scanner_node.get_logger().info("Node is in state searching")
-                # if the node is active start qr-code search
-                if (qr_code_scanner_node.active):
-                    try:
-                        qr_code_scanner_node.scan_for_qr_code()
-                    except Exception as error:
-                        # handle the exception
-                        qr_code_scanner_node.get_logger().info(
-                            f"Error ocurred when scanning QR Code: {error}")
-                # if the node gets deactivated in searching the state changes to "ready"
-                else:
-                    qr_code_scanner_node.set_state(NodeState.READY)
-            case _:
-                # if the node is not in a valid state send error code to mission control and destroy node
-                qr_code_scanner_node.get_logger().info(
-                    "QR-Code detection node is in unknown state")
-                qr_code_scanner_node._job_finished_error_msg_(
-                    "Node shut down because it is in unknwon state")
-                break
+    executor = SingleThreadedExecutor()
+    executor.add_node(qr_code_scanner_node)
 
-    # destroy the node
-    qr_code_scanner_node.destroy_node()
-    rclpy.shutdown()
+    try:
+        executor.spin()
+    except:
+        del executor
+        qr_code_scanner_node.destroy_node()
+        rclpy.shutdown()
+
+    try:
+        executor.spin()
+    except Exception as e:
+        qr_code_scanner_node.get_logger().error(
+            f"An unexpected error occurred: {e}")
+    finally:
+        del executor
+        qr_code_scanner_node.destroy_node()
+        rclpy.shutdown()
 
 
 if __name__ == '__main__':
