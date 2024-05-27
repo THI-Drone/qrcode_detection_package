@@ -1,19 +1,19 @@
 import os
 os.environ["OPENCV_LOG_LEVEL"] = "SILENT"
-from interfaces.msg import Control
-from interfaces.msg import QRCodeInfo
-from common_package_py.topic_names import TopicNames
-from common_package_py.common_node import CommonNode
-from typing import Union, Tuple, List
-from enum import Enum
-from std_msgs.msg import String
-from cv2.typing import MatLike
-import cv2
-from rclpy.executors import SingleThreadedExecutor
-from rclpy.node import Node
-import subprocess
-import time
 import rclpy
+import time
+import subprocess
+from rclpy.node import Node
+from rclpy.executors import SingleThreadedExecutor
+import cv2
+from cv2.typing import MatLike
+from std_msgs.msg import String
+from enum import Enum
+from typing import Union, Tuple, List
+from common_package_py.common_node import CommonNode
+from common_package_py.topic_names import TopicNames
+from interfaces.msg import QRCodeInfo
+from interfaces.msg import Control
 
 
 class NodeState(Enum):
@@ -438,12 +438,12 @@ def main(args=None) -> None:
         del executor
         qr_code_scanner_node.destroy_node()
         rclpy.shutdown()
-    
-    
+
     try:
         executor.spin()
     except Exception as e:
-        qr_code_scanner_node.get_logger().error(f"An unexpected error occurred: {e}")
+        qr_code_scanner_node.get_logger().error(
+            f"An unexpected error occurred: {e}")
     finally:
         del executor
         qr_code_scanner_node.destroy_node()
