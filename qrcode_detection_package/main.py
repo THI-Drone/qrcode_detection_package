@@ -9,7 +9,6 @@ from enum import Enum
 from std_msgs.msg import String
 from cv2.typing import MatLike
 import cv2
-from picamera2 import Picamera2
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.node import Node
 import subprocess
@@ -79,6 +78,7 @@ class QRCodeScannerNode(CommonNode):
 
         if (self.config_detection_method == CaptureImageMethod.PICAM):
             # init picam
+            from picamera2 import Picamera2
             self.picam2 = Picamera2()
             # self.picam2.configure(self.picam2.create_still_configuration())
             self.picam2.start()
