@@ -80,7 +80,7 @@ class QRCodeScannerNode(CommonNode):
         if (self.config_detection_method == CaptureImageMethod.PICAM):
             # init picam
             self.picam2 = Picamera2()
-            self.picam2.configure(self.picam2.create_still_configuration())
+            # self.picam2.configure(self.picam2.create_still_configuration())
             self.picam2.start()
 
         # count detected markers for simulation purposes
