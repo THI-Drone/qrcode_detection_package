@@ -432,11 +432,22 @@ def main(args=None) -> None:
     executor = SingleThreadedExecutor()
     executor.add_node(qr_code_scanner_node)
 
-    executor.spin()
-
-    del executor
-    qr_code_scanner_node.destroy_node()
-    rclpy.shutdown()
+    try:
+        executor.spin()
+    except:
+        del executor
+        qr_code_scanner_node.destroy_node()
+        rclpy.shutdown()
+    
+    
+    try:
+        executor.spin()
+    except Exception as e:
+        qr_code_scanner_node.get_logger().error(f"An unexpected error occurred: {e}")
+    finally:
+        del executor
+        qr_code_scanner_node.destroy_node()
+        rclpy.shutdown()
 
 
 if __name__ == '__main__':
