@@ -146,7 +146,7 @@ class QRCodeScannerNode(CommonNode):
                 try:
                     script_dir = os.path.dirname(os.path.realpath(__file__))
                     # use path of different images for sim
-                    image_num = self.numDetMark % 2
+                    image_num = self.numDetMark % 4
                     rel_path = "../test_image/qrtest_content_" + \
                         str(image_num) + ".png"
                     image_path = os.path.join(
