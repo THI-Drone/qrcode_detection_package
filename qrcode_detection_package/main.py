@@ -427,23 +427,20 @@ class QRCodeScannerNode(CommonNode):
 def main(args=None) -> None:
     rclpy.init(args=args)
     node_id = 'qr_code_scanner_node'
-    qr_code_scanner_node = QRCodeScannerNode(node_id)
-
-    executor = SingleThreadedExecutor()
-    executor.add_node(qr_code_scanner_node)
-
+    
     try:
-        executor.spin()
-    except:
-        del executor
-        qr_code_scanner_node.destroy_node()
-        rclpy.shutdown()
-
+        qr_code_scanner_node = QRCodeScannerNode(node_id)
+    except Exception as e:
+        qr_code_scanner_node.get_logger().error(
+            f"Error occured when creating QRCodeScannerNode: {e}")
+    
     try:
+        executor = SingleThreadedExecutor()
+        executor.add_node(qr_code_scanner_node)
         executor.spin()
     except Exception as e:
         qr_code_scanner_node.get_logger().error(
-            f"An unexpected error occurred: {e}")
+            f"Error occured when creating executor: {e}")
     finally:
         del executor
         qr_code_scanner_node.destroy_node()
