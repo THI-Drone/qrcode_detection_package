@@ -83,7 +83,14 @@ class QRCodeScannerNode(CommonNode):
             # self.picam2.configure(self.picam2.create_still_configuration())
             self.picam2.start()
 
-        # count detected markers for simulation purposes
+        self.declare_parameter('IMG_PATH', '/images/default')
+        # read imgage path parameter
+        self.image_path = self.get_parameter('IMG_PATH').get_parameter_value().string_value
+        
+        if not os.path.exists(self.image_path):
+            os.makedirs(self.image_path)
+            
+        # count detected markers
         self.numDetMark = 0
 
         main_timer = self.create_timer(
@@ -201,6 +208,7 @@ class QRCodeScannerNode(CommonNode):
                 if self.picam2 is not None:
                     try:
                         captured_image = self.picam2.capture_array("main")
+                        self.numDetMark += 1
                     except:
                         self.get_logger().info("PiCam could not take picture")
                         return None
@@ -336,12 +344,7 @@ class QRCodeScannerNode(CommonNode):
                     # if a QR-Code was successfully detected save the image and publish contents on the topic
 
                     # save the image that contains successfully decoded QR-Code
-                    img_dir = "images"
-                    if not os.path.exists(img_dir):
-                        os.makedirs(img_dir)
-
-                    timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
-                    img_path = f'{img_dir}/{timestamp}.jpg'
+                    img_path = f'{self.image_path}/successfull_detected_{self.numDetMark}.jpg'
                     cv2.imwrite(img_path, captured_image)
                     self.get_logger().info(
                         f"Saved image of detected QR-Code as: {img_path}")
@@ -367,6 +370,12 @@ class QRCodeScannerNode(CommonNode):
 
                 else:
                     self.get_logger().info("No QR Code found")
+                    if self.numDetMark % 10 == 0:
+                        img_path = f'{self.image_path}/not_detected_{self.numDetMark}.jpg'
+                        cv2.imwrite(img_path, captured_image)
+                        self.get_logger().info(
+                            f"Saved image of not detected QR-Code as: {img_path}")
+                    
             except NoQRCodeDetectedError as error:
                 # QR code detector raised exception
                 self.get_logger().info(
