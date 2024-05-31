@@ -5,6 +5,7 @@ import time
 import subprocess
 from rclpy.node import Node
 from rclpy.executors import SingleThreadedExecutor
+import logging
 import cv2
 from cv2.typing import MatLike
 from std_msgs.msg import String
@@ -440,9 +441,10 @@ def main(args=None) -> None:
     try:
         qr_code_scanner_node = QRCodeScannerNode(node_id)
     except Exception as e:
-        qr_code_scanner_node.get_logger().error(
+        logging.getLogger('EMERGENCY').error(
             f"Error occured when creating QRCodeScannerNode: {e}")
-    
+        os._exit(1)
+
     try:
         executor = SingleThreadedExecutor()
         executor.add_node(qr_code_scanner_node)
@@ -450,6 +452,7 @@ def main(args=None) -> None:
     except Exception as e:
         qr_code_scanner_node.get_logger().error(
             f"Error occured when creating executor: {e}")
+        raise e
     finally:
         del executor
         qr_code_scanner_node.destroy_node()
