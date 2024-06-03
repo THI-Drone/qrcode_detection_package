@@ -210,6 +210,11 @@ class QRCodeScannerNode(CommonNode):
                     try:
                         captured_image = self.picam2.capture_array("main")
                         self.numDetMark += 1
+                        if self.numDetMark % 10 == 0:
+                            img_path = f'{self.image_path}/not_detected_{self.numDetMark}.jpg'
+                            cv2.imwrite(img_path, captured_image)
+                            self.get_logger().info(
+                                f"Saved image of not detected QR-Code as: {img_path}")
                     except:
                         self.get_logger().info("PiCam could not take picture")
                         return None
