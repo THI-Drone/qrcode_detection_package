@@ -211,7 +211,7 @@ class QRCodeScannerNode(CommonNode):
                         captured_image = self.picam2.capture_array("main")
                         self.numDetMark += 1
                         if self.numDetMark % 10 == 0:
-                            img_path = f'{self.image_path}/not_detected_{self.numDetMark}.jpg'
+                            img_path = f'{self.image_path}/{self.numDetMark}_not_detected.jpg'
                             cv2.imwrite(img_path, captured_image)
                             self.get_logger().info(
                                 f"Saved image of not detected QR-Code as: {img_path}")
@@ -350,7 +350,7 @@ class QRCodeScannerNode(CommonNode):
                     # if a QR-Code was successfully detected save the image and publish contents on the topic
 
                     # save the image that contains successfully decoded QR-Code
-                    img_path = f'{self.image_path}/successfull_detected_{self.numDetMark}.jpg'
+                    img_path = f'{self.image_path}/{self.numDetMark}_successfull_detected.jpg'
                     cv2.imwrite(img_path, captured_image)
                     self.get_logger().info(
                         f"Saved image of detected QR-Code as: {img_path}")
@@ -376,12 +376,6 @@ class QRCodeScannerNode(CommonNode):
 
                 else:
                     self.get_logger().info("No QR Code found")
-                    if self.numDetMark % 10 == 0:
-                        img_path = f'{self.image_path}/not_detected_{self.numDetMark}.jpg'
-                        cv2.imwrite(img_path, captured_image)
-                        self.get_logger().info(
-                            f"Saved image of not detected QR-Code as: {img_path}")
-                    
             except NoQRCodeDetectedError as error:
                 # QR code detector raised exception
                 self.get_logger().info(
