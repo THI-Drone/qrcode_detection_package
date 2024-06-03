@@ -5,6 +5,7 @@ import time
 import subprocess
 from rclpy.node import Node
 from rclpy.executors import SingleThreadedExecutor
+import logging
 import cv2
 from cv2.typing import MatLike
 from std_msgs.msg import String
@@ -83,7 +84,14 @@ class QRCodeScannerNode(CommonNode):
             # self.picam2.configure(self.picam2.create_still_configuration())
             self.picam2.start()
 
-        # count detected markers for simulation purposes
+        self.declare_parameter('IMG_PATH', '/images/default')
+        # read imgage path parameter
+        self.image_path = self.get_parameter('IMG_PATH').get_parameter_value().string_value
+        
+        if not os.path.exists(self.image_path):
+            os.makedirs(self.image_path)
+            
+        # count detected markers
         self.numDetMark = 0
 
         main_timer = self.create_timer(
@@ -146,7 +154,7 @@ class QRCodeScannerNode(CommonNode):
                 try:
                     script_dir = os.path.dirname(os.path.realpath(__file__))
                     # use path of different images for sim
-                    image_num = self.numDetMark % 2
+                    image_num = self.numDetMark % 4
                     rel_path = "../test_image/qrtest_content_" + \
                         str(image_num) + ".png"
                     image_path = os.path.join(
@@ -201,6 +209,12 @@ class QRCodeScannerNode(CommonNode):
                 if self.picam2 is not None:
                     try:
                         captured_image = self.picam2.capture_array("main")
+                        self.numDetMark += 1
+                        if self.numDetMark % 10 == 0:
+                            img_path = f'{self.image_path}/{self.numDetMark}_not_detected.jpg'
+                            cv2.imwrite(img_path, captured_image)
+                            self.get_logger().info(
+                                f"Saved image of not detected QR-Code as: {img_path}")
                     except:
                         self.get_logger().info("PiCam could not take picture")
                         return None
@@ -336,12 +350,7 @@ class QRCodeScannerNode(CommonNode):
                     # if a QR-Code was successfully detected save the image and publish contents on the topic
 
                     # save the image that contains successfully decoded QR-Code
-                    img_dir = "images"
-                    if not os.path.exists(img_dir):
-                        os.makedirs(img_dir)
-
-                    timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
-                    img_path = f'{img_dir}/{timestamp}.jpg'
+                    img_path = f'{self.image_path}/{self.numDetMark}_successfull_detected.jpg'
                     cv2.imwrite(img_path, captured_image)
                     self.get_logger().info(
                         f"Saved image of detected QR-Code as: {img_path}")
@@ -427,23 +436,22 @@ class QRCodeScannerNode(CommonNode):
 def main(args=None) -> None:
     rclpy.init(args=args)
     node_id = 'qr_code_scanner_node'
-    qr_code_scanner_node = QRCodeScannerNode(node_id)
-
-    executor = SingleThreadedExecutor()
-    executor.add_node(qr_code_scanner_node)
+    
+    try:
+        qr_code_scanner_node = QRCodeScannerNode(node_id)
+    except Exception as e:
+        logging.getLogger('EMERGENCY').error(
+            f"Error occured when creating QRCodeScannerNode: {e}")
+        os._exit(1)
 
     try:
-        executor.spin()
-    except:
-        del executor
-        qr_code_scanner_node.destroy_node()
-        rclpy.shutdown()
-
-    try:
+        executor = SingleThreadedExecutor()
+        executor.add_node(qr_code_scanner_node)
         executor.spin()
     except Exception as e:
         qr_code_scanner_node.get_logger().error(
-            f"An unexpected error occurred: {e}")
+            f"Error occured when creating executor: {e}")
+        raise e
     finally:
         del executor
         qr_code_scanner_node.destroy_node()
