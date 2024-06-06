@@ -81,10 +81,12 @@ class QRCodeScannerNode(CommonNode):
             # init picam
             from picamera2 import Picamera2
             self.picam2 = Picamera2()
-            # self.picam2.configure(self.picam2.create_still_configuration())
+            config = self.picam2.create_still_configuration(main={"size": (2048, 1536), 'format': 'RGB888',})
+            #config = picam2.create_still_configuration(main={"size": (1000, 750), 'format': 'RGB888',})
+            self.picam2.configure(config)
             self.picam2.start()
 
-        self.declare_parameter('IMG_PATH', '/images/default')
+        self.declare_parameter('IMG_PATH', 'images/default')
         # read imgage path parameter
         self.image_path = self.get_parameter('IMG_PATH').get_parameter_value().string_value
         
@@ -155,10 +157,13 @@ class QRCodeScannerNode(CommonNode):
                     script_dir = os.path.dirname(os.path.realpath(__file__))
                     # use path of different images for sim
                     image_num = self.numDetMark % 4
-                    rel_path = "../test_image/qrtest_content_" + \
-                        str(image_num) + ".png"
+                    #rel_path = "../test_image/qrtest_content_" + \
+                    #    str(image_num) + ".png"
+                        
+                    rel_path = "../test_image/80_not_detected.jpg"
                     image_path = os.path.join(
                         script_dir, rel_path)
+                    self.get_logger().info(f"Try loading from {image_path}")
                     # Load the test image
                     captured_image = cv2.imread(image_path)
                     self.numDetMark += 1
