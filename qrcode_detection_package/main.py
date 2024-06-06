@@ -15,6 +15,7 @@ from common_package_py.common_node import CommonNode
 from common_package_py.topic_names import TopicNames
 from interfaces.msg import QRCodeInfo
 from interfaces.msg import Control
+from qreader import QReader
 
 
 class NodeState(Enum):
@@ -63,7 +64,12 @@ class QRCodeScannerNode(CommonNode):
             self.__callback_control,
             10
         )
-        self.qr_code_detector = cv2.QRCodeDetector()
+        
+        #self._activate_()
+        
+        #self.qr_code_detector = cv2.QRCodeDetector()
+        self.qreader = QReader(model_size = 'n', min_confidence = 0.5)
+        
         self.qr_publisher = self.create_publisher(
             QRCodeInfo, TopicNames.QRCodeInfo, 10)
 
@@ -97,7 +103,7 @@ class QRCodeScannerNode(CommonNode):
         self.numDetMark = 0
 
         main_timer = self.create_timer(
-            0.1, self.main)
+            2, self.main)
 
     def __callback_control(self, control_msg: Control) -> None:
         """
@@ -159,13 +165,13 @@ class QRCodeScannerNode(CommonNode):
                     image_num = self.numDetMark % 4
                     #rel_path = "../test_image/qrtest_content_" + \
                     #    str(image_num) + ".png"
-                        
-                    rel_path = "../test_image/80_not_detected.jpg"
+                    rel_path = "/home/ws/src/src/qrcode_detection_package/test_image/difficult/80_not_detected.jpg"
                     image_path = os.path.join(
                         script_dir, rel_path)
                     self.get_logger().info(f"Try loading from {image_path}")
                     # Load the test image
-                    captured_image = cv2.imread(image_path)
+                    #captured_image = cv2.imread(image_path)
+                    captured_image = cv2.imread(rel_path)
                     self.numDetMark += 1
                 except:
                     self.get_logger().info("Image could not be loaded")
@@ -298,36 +304,37 @@ class QRCodeScannerNode(CommonNode):
 
         # detect and decode QR codes in the image using OpenCV library
         try:
-            decoded_info, points, _ = self.qr_code_detector.detectAndDecode(
-                image)
+            #decoded_info, points, _ = self.qr_code_detector.detectAndDecode(
+            #    image)
+            decoded_info = self.qreader.detect_and_decode(image=image)
         except:
             raise NoQRCodeDetectedError("Exception while detecting QR Code")
 
         # check if QR code was successfully decoded
         if (len(decoded_info) > 0):
             # Log QR-Code content
-            self.get_logger().info(f"Detected QR code: {decoded_info}")
+            self.get_logger().info(f"Detected QR code: {decoded_info[0]}")
 
             # Calculate the geometric midpoint of the bounding rectangle
-            midpoint_x, midpoint_y = self.__corners_to_middlepoint(points)
+            #midpoint_x, midpoint_y = self.__corners_to_middlepoint(points)
 
             # Log the midpoint coordinates
-            self.get_logger().info(
-                f"QR code middle point: ({midpoint_x}|{midpoint_y})")
+            #self.get_logger().info(
+            #    f"QR code middle point: ({midpoint_x}|{midpoint_y})")
 
             # Get midpoints relative to the center of the picture
-            img_height, img_width = image.shape[:2]
-            rel_midpoint_x, rel_midpoint_y = self.__relative_midpoint(
-                midpoint_x, midpoint_y, img_width, img_height)
+            #img_height, img_width = image.shape[:2]
+            #rel_midpoint_x, rel_midpoint_y = self.__relative_midpoint(
+            #    midpoint_x, midpoint_y, img_width, img_height)
             # Log the relative midpoint coordinates
-            self.get_logger().info(
-                f"Relative QR code middle point: ({rel_midpoint_x}|{rel_midpoint_y})")
+            #self.get_logger().info(
+            #    f"Relative QR code middle point: ({rel_midpoint_x}|{rel_midpoint_y})")
         else:
             # if no QR-Code was detected raise Excpetion
             raise NoQRCodeDetectedError("No QR code was detected")
 
         # return content and relative position of the QR-Code
-        return decoded_info, rel_midpoint_x, rel_midpoint_y
+        return decoded_info[0]
 
     def scan_for_qr_code(self) -> None:
         """
@@ -348,8 +355,7 @@ class QRCodeScannerNode(CommonNode):
         if captured_image is not None:
             try:
                 # use OpenCV to detect qr codes in the image
-                qr_code_content, qrcode_center_x, qrcode_center_y = self.__detect_qr_codes(
-                    captured_image)
+                qr_code_content = self.__detect_qr_codes(captured_image)
                 # check if qr_code_really has content
                 if qr_code_content:
                     # if a QR-Code was successfully detected save the image and publish contents on the topic
@@ -365,13 +371,12 @@ class QRCodeScannerNode(CommonNode):
                     msg.time_stamp = self.get_clock().now().to_msg()
                     msg.sender_id = self.get_name()
                     msg.qr_code_content = qr_code_content
-                    msg.qrcode_position_x = qrcode_center_x
-                    msg.qrcode_position_y = qrcode_center_y
+                    msg.qrcode_position_x = 0.0
+                    msg.qrcode_position_y = 0.0
 
                     self.qr_publisher.publish(msg)
                     self.get_logger().info("Published QR code info")
-                    self.get_logger().info(
-                        f"Content = {qr_code_content}, Position = ({qrcode_center_x}|{qrcode_center_y})")
+                    self.get_logger().info(f"Content = {qr_code_content}")
 
                     # create dict for sending job finished message
                     payload = {"marker": str(qr_code_content)}
