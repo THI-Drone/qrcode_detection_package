@@ -5,6 +5,8 @@ import time
 import subprocess
 from rclpy.node import Node
 from rclpy.executors import SingleThreadedExecutor
+from rclpy.executors import MultiThreadedExecutor
+from rclpy.callback_groups import ReentrantCallbackGroup
 import logging
 import cv2
 from cv2.typing import MatLike
@@ -98,12 +100,14 @@ class QRCodeScannerNode(CommonNode):
         
         if not os.path.exists(self.image_path):
             os.makedirs(self.image_path)
-            
+
         # count detected markers
         self.numDetMark = 0
 
+        self.rentrantCallback = ReentrantCallbackGroup()
+        
         main_timer = self.create_timer(
-            2, self.main)
+            1.5, self.main, callback_group=self.rentrantCallback)
 
     def __callback_control(self, control_msg: Control) -> None:
         """
@@ -455,7 +459,8 @@ def main(args=None) -> None:
         os._exit(1)
 
     try:
-        executor = SingleThreadedExecutor()
+        #executor = SingleThreadedExecutor()
+        executor = MultiThreadedExecutor(num_threads=2)
         executor.add_node(qr_code_scanner_node)
         executor.spin()
     except Exception as e:
