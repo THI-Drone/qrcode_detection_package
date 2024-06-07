@@ -170,7 +170,7 @@ class QRCodeScannerNode(CommonNode):
                     image_num = self.numDetMark % 4
                     #rel_path = "../test_image/qrtest_content_" + \
                     #    str(image_num) + ".png"
-                    rel_path = "/home/ws/src/src/qrcode_detection_package/test_image/difficult/80_not_detected.jpg"
+                    rel_path = "/home/ws/src/qrcode_detection_package/test_image/difficult/80_not_detected.jpg"
                     image_path = os.path.join(
                         script_dir, rel_path)
                     self.get_logger().info(f"Try loading from {image_path}")
@@ -291,9 +291,10 @@ class QRCodeScannerNode(CommonNode):
             #decoded_info, points, _ = self.qr_code_detector.detectAndDecode(
             #    image)
             decoded_info = self.qreader.detect_and_decode(image=image)
-            decoded_info_list[0] = decoded_info[0]
+            decoded_info_list.append(decoded_info[0])
         except:
-            raise NoQRCodeDetectedError("Exception while detecting QR Code")
+            pass
+            #raise NoQRCodeDetectedError("Exception while detecting QR Code")
 
     def __detect_qr_codes(self, image: MatLike) -> Tuple[str, float, float]:
         """
@@ -328,7 +329,7 @@ class QRCodeScannerNode(CommonNode):
         thread.join()
 
 
-        #self.__call_qreader(image, decoded_info)
+        #self.__call_qreader(image, decoded_info_list)
 
         #try:
             #decoded_info, points, _ = self.qr_code_detector.detectAndDecode(
