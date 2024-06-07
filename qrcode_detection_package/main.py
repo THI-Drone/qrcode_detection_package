@@ -3,6 +3,7 @@ os.environ["OPENCV_LOG_LEVEL"] = "SILENT"
 import rclpy
 import time
 import subprocess
+import threading
 from rclpy.node import Node
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.executors import MultiThreadedExecutor
@@ -285,6 +286,15 @@ class QRCodeScannerNode(CommonNode):
 
         return (rel_midpoint_x_percent, rel_midpoint_y_percent)
 
+    def __call_qreader(self, image:MatLike, decoded_info_list):
+        try:
+            #decoded_info, points, _ = self.qr_code_detector.detectAndDecode(
+            #    image)
+            decoded_info = self.qreader.detect_and_decode(image=image)
+            decoded_info_list[0] = decoded_info[0]
+        except:
+            raise NoQRCodeDetectedError("Exception while detecting QR Code")
+
     def __detect_qr_codes(self, image: MatLike) -> Tuple[str, float, float]:
         """
         Detects QR codes in the provided image and calculates the midpoint of the bounding rectangle.
@@ -306,18 +316,31 @@ class QRCodeScannerNode(CommonNode):
         rel_midpoint_x = 0
         rel_midpoint_y = 0
 
+        decoded_info_list = []
         # detect and decode QR codes in the image using OpenCV library
-        try:
+
+        thread = threading.Thread(target=self.__call_qreader, args=(image, decoded_info_list))
+
+        # Starte den Thread
+        thread.start()
+
+        # Optional: Warte, bis der Thread beendet ist
+        thread.join()
+
+
+        #self.__call_qreader(image, decoded_info)
+
+        #try:
             #decoded_info, points, _ = self.qr_code_detector.detectAndDecode(
             #    image)
-            decoded_info = self.qreader.detect_and_decode(image=image)
-        except:
-            raise NoQRCodeDetectedError("Exception while detecting QR Code")
+        #    decoded_info = self.qreader.detect_and_decode(image=image)
+        #except:
+        #    raise NoQRCodeDetectedError("Exception while detecting QR Code")
 
         # check if QR code was successfully decoded
-        if (len(decoded_info) > 0):
+        if (len(decoded_info_list) > 0):
             # Log QR-Code content
-            self.get_logger().info(f"Detected QR code: {decoded_info[0]}")
+            self.get_logger().info(f"Detected QR code: {decoded_info_list[0]}")
 
             # Calculate the geometric midpoint of the bounding rectangle
             #midpoint_x, midpoint_y = self.__corners_to_middlepoint(points)
@@ -338,7 +361,7 @@ class QRCodeScannerNode(CommonNode):
             raise NoQRCodeDetectedError("No QR code was detected")
 
         # return content and relative position of the QR-Code
-        return decoded_info[0]
+        return decoded_info_list[0]
 
     def scan_for_qr_code(self) -> None:
         """
