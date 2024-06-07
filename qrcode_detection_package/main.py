@@ -104,10 +104,10 @@ class QRCodeScannerNode(CommonNode):
         # count detected markers
         self.numDetMark = 0
 
-        self.rentrantCallback = ReentrantCallbackGroup()
+        self.reentrantCallback = ReentrantCallbackGroup()
         
         main_timer = self.create_timer(
-            1.5, self.main, callback_group=self.rentrantCallback)
+            1.5, self.main, callback_group=self.reentrantCallback)
 
     def __callback_control(self, control_msg: Control) -> None:
         """
@@ -225,11 +225,11 @@ class QRCodeScannerNode(CommonNode):
                     try:
                         captured_image = self.picam2.capture_array("main")
                         self.numDetMark += 1
-                        if self.numDetMark % 10 == 0:
-                            img_path = f'{self.image_path}/{self.numDetMark}_not_detected.jpg'
-                            cv2.imwrite(img_path, captured_image)
-                            self.get_logger().info(
-                                f"Saved image of not detected QR-Code as: {img_path}")
+                        #if self.numDetMark % 10 == 0:
+                        img_path = f'{self.image_path}/{self.numDetMark}_captured_image.jpg'
+                        cv2.imwrite(img_path, captured_image)
+                        self.get_logger().info(
+                            f"Saved captured image as: {img_path}")
                     except:
                         self.get_logger().info("PiCam could not take picture")
                         return None
