@@ -109,7 +109,7 @@ class QRCodeScannerNode(CommonNode):
         self.reentrantCallback = ReentrantCallbackGroup()
         
         main_timer = self.create_timer(
-            3, self.main, callback_group=self.reentrantCallback)
+            1.5, self.main, callback_group=self.reentrantCallback)
 
     def __callback_control(self, control_msg: Control) -> None:
         """
