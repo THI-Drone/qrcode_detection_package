@@ -19,6 +19,7 @@ from common_package_py.topic_names import TopicNames
 from interfaces.msg import QRCodeInfo
 from interfaces.msg import Control
 from qreader import QReader
+import signal
 
 
 class NodeState(Enum):
@@ -68,7 +69,7 @@ class QRCodeScannerNode(CommonNode):
             10
         )
         
-        #self._activate_()
+        self.is_busy = False
         
         #self.qr_code_detector = cv2.QRCodeDetector()
         self.qreader = QReader(model_size = 'n', min_confidence = 0.5)
@@ -290,6 +291,7 @@ class QRCodeScannerNode(CommonNode):
         try:
             #decoded_info, points, _ = self.qr_code_detector.detectAndDecode(
             #    image)
+            
             decoded_info = self.qreader.detect_and_decode(image=image)
             decoded_info_list.append(decoded_info[0])
         except:
@@ -444,34 +446,40 @@ class QRCodeScannerNode(CommonNode):
         Returns: 
             None
         """
-        # start excecuting state machine until node gets destroyed
-        match self.node_state:
-            # check if node is in state "ready"
-            # in this state the node waits for the control message to activate the node
-            case NodeState.READY:
-                # if the node got activated it sets its internal state to searching
-                if (self.active):
-                    self.set_state(NodeState.SEARCHING)
-            # check if node is in state "searching"
-            # in this state the node will continue to capture images and scan them for qrcodes until node gets deactivated
-            case NodeState.SEARCHING:
-                # if the node is active start qr-code search
-                if (self.active):
-                    try:
-                        self.scan_for_qr_code()
-                    except Exception as error:
-                        # handle the exception
-                        self.get_logger().info(
-                            f"Error ocurred when scanning QR Code: {error}")
-                # if the node gets deactivated in searching the state changes to "ready"
-                else:
-                    self.set_state(NodeState.READY)
-            case _:
-                # if the node is not in a valid state send error code to mission control and destroy node
-                self.get_logger().info(
-                    "QR-Code detection node is in unknown state")
-                self._job_finished_error_msg_(
-                    "Node shut down because it is in unknown state")
+        if not self.is_busy:
+            self.is_busy = True
+            # start excecuting state machine until node gets destroyed
+            match self.node_state:
+                # check if node is in state "ready"
+                # in this state the node waits for the control message to activate the node
+                case NodeState.READY:
+                    # if the node got activated it sets its internal state to searching
+                    if (self.active):
+                        self.set_state(NodeState.SEARCHING)
+                # check if node is in state "searching"
+                # in this state the node will continue to capture images and scan them for qrcodes until node gets deactivated
+                case NodeState.SEARCHING:
+                    # if the node is active start qr-code search
+                    if (self.active):
+                        try:
+                            self.scan_for_qr_code()
+                        except Exception as error:
+                            # handle the exception
+                            self.get_logger().info(
+                                f"Error ocurred when scanning QR Code: {error}")
+                    # if the node gets deactivated in searching the state changes to "ready"
+                    else:
+                        self.set_state(NodeState.READY)
+                case _:
+                    # if the node is not in a valid state send error code to mission control and destroy node
+                    self.get_logger().info(
+                        "QR-Code detection node is in unknown state")
+                    self._job_finished_error_msg_(
+                        "Node shut down because it is in unknown state")
+            self.is_busy = False
+        else:
+            self.get_logger().info(
+                        "QR-Code node is busy, skip iteration")
 
 
 def main(args=None) -> None:
