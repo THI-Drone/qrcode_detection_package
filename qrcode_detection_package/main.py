@@ -108,7 +108,7 @@ class QRCodeScannerNode(CommonNode):
         self.reentrantCallback = ReentrantCallbackGroup()
         
         main_timer = self.create_timer(
-            1.5, self.main, callback_group=self.reentrantCallback)
+            3, self.main, callback_group=self.reentrantCallback)
 
     def __callback_control(self, control_msg: Control) -> None:
         """
@@ -341,7 +341,8 @@ class QRCodeScannerNode(CommonNode):
         # check if QR code was successfully decoded
         if (len(decoded_info_list) > 0):
             # Log QR-Code content
-            self.get_logger().info(f"Detected QR code: {decoded_info_list[0]}")
+            if (decoded_info_list[0] != None):
+                self.get_logger().info(f"Detected QR code: {decoded_info_list[0]}")
 
             # Calculate the geometric midpoint of the bounding rectangle
             #midpoint_x, midpoint_y = self.__corners_to_middlepoint(points)
@@ -357,6 +358,8 @@ class QRCodeScannerNode(CommonNode):
             # Log the relative midpoint coordinates
             #self.get_logger().info(
             #    f"Relative QR code middle point: ({rel_midpoint_x}|{rel_midpoint_y})")
+            else:
+                raise NoQRCodeDetectedError("Decoded QR Code content was None")
         else:
             # if no QR-Code was detected raise Excpetion
             raise NoQRCodeDetectedError("No QR code was detected")
